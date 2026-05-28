@@ -20,6 +20,7 @@ jobs:
           apk add gmp mpc1 mpfr4 make cmake git
           git clone https://github.com/bucanero/dbglogger
           git clone --branch v1.1.2 https://github.com/bucanero/apollo-lib
+          git clone --branch dreamcastSDL2 https://github.com/GPF/SDL
           git clone https://github.com/KallistiOS/KallistiOS.git -b master /opt/toolchains/dc/kos
           git clone --recursive https://github.com/KallistiOS/kos-ports /opt/toolchains/dc/kos-ports
 
@@ -30,14 +31,43 @@ jobs:
           . /opt/toolchains/dc/kos/environ.sh
           make
 
+      - name: build KOS-ports
+        run: |
+          cd /opt/toolchains/dc/kos-ports
+          . /opt/toolchains/dc/kos/environ.sh
+          cd zlib
+          make install
+          cd ../polarssl
+          make install
+          cd ../libpng
+          make install
+          cd ../libzip
+          make install
+          cd ../libGL
+          make install
+          cd ../freetype
+          make install
+          cd ../mbedtls
+          make install
+          cd ../curl
+          make install
+
+      - name: build SDL2
+        run: |
+          cd SDL/build-scripts
+          . /opt/toolchains/dc/kos/environ.sh
+          ./dreamcast.sh
+
       - name: build dbglogger
         run: |
           cd dbglogger
+          . /opt/toolchains/dc/kos/environ.sh
           make -f Makefile.DC install
 
       - name: build apollo lib
         run: |
           cd apollo-lib
+          . /opt/toolchains/dc/kos/environ.sh
           make -f Makefile.DC install
 
       - name: Configure project
