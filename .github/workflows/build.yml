@@ -1,0 +1,52 @@
+name: DC Build
+
+on: [push, pull_request]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  psp:
+    name: Build (DC)
+    runs-on: ubuntu-latest
+    container: pcercuei/dreamcast-toolchain:15.2.1-dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          apk update
+          apk add gmp mpc1 mpfr4 make cmake git
+          git clone https://github.com/bucanero/dbglogger
+          git clone --branch v1.1.2 https://github.com/bucanero/apollo-lib
+
+      - name: build dbglogger
+        run: |
+          cd dbglogger
+          make -f Makefile.DC install
+
+      - name: build apollo lib
+        run: |
+          cd apollo-lib
+          make -f Makefile.DC install
+
+      - name: Configure project
+        run: |
+          cmake -S . \
+                -DCMAKE_TOOLCHAIN_FILE=$PS2DEV/ps2sdk/ps2dev.cmake \
+                -D CMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+
+      - name: Build project
+        run: make
+
+      - name: Compress binary
+        run: |
+          echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
+
+      - name: Upload application
+        uses: actions/upload-artifact@v4
+        with:
+          name: apollo-dc-build_${{ env.sha_name }}
+          path: APOLLO.ELF
+          if-no-files-found: error
