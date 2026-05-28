@@ -20,6 +20,15 @@ jobs:
           apk add gmp mpc1 mpfr4 make cmake git
           git clone https://github.com/bucanero/dbglogger
           git clone --branch v1.1.2 https://github.com/bucanero/apollo-lib
+          git clone https://github.com/KallistiOS/KallistiOS.git -b master /opt/toolchains/dc/kos
+          git clone --recursive https://github.com/KallistiOS/kos-ports /opt/toolchains/dc/kos-ports
+
+      - name: build KOS
+        run: |
+          cd /opt/toolchains/dc/kos
+          cp doc/environ.sh.sample environ.sh
+          . /opt/toolchains/dc/kos/environ.sh
+          make
 
       - name: build dbglogger
         run: |
