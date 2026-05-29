@@ -58,7 +58,7 @@ jobs:
           . /opt/toolchains/dc/kos/environ.sh
           cd /opt/toolchains/dc/kos/addons
           curl -sL https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17/archive_addons.tar.gz | tar xz -C ./
-          cd SDL/build-scripts
+#          cd SDL/build-scripts
 #          ./dreamcast.sh
 
       - name: build dbglogger
