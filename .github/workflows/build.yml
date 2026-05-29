@@ -87,5 +87,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apollo-dc-build_${{ env.sha_name }}
-          path: APOLLO-DC.ELF
+          path: APOLLO-DC.elf
           if-no-files-found: error
