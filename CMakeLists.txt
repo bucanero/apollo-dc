@@ -25,6 +25,7 @@ include_directories(
   include
   $ENV{KOS_PORTS}/include/freetype2
   $ENV{KOS_PORTS}/include/zlib
+  $ENV{KOS_PORTS}/include/libzip
 )
 
 link_directories(

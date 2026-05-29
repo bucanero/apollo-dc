@@ -1,4 +1,4 @@
-#include <libzip/zip.h>
+#include <zip.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
