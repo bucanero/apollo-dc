@@ -26,7 +26,7 @@ extern "C" {
 #define ANALOG_MAX          (ANALOG_CENTER + ANALOG_THRESHOLD)
 
 
-typedef struct Ps2PadConfig
+typedef struct DCpadConfig
 {
 	uint32_t padDataCurrent;
 	uint32_t padDataLast;
@@ -34,19 +34,19 @@ typedef struct Ps2PadConfig
 	unsigned int buttonsReleased;
 	unsigned int buttonsHold;
 	unsigned int idle;
-} Ps2PadConfig;
+} DCpadConfig;
 
-int ps2PadInit(void);
-void ps2PadFinish(void);
-Ps2PadConfig *ps2PadGetConf(void);
-bool ps2PadGetButtonHold(unsigned int filter);
-bool ps2PadGetButtonPressed(unsigned int filter);
-bool ps2PadGetButtonReleased(unsigned int filter);
-unsigned int ps2PadGetCurrentButtonsPressed(void);
-unsigned int ps2PadGetCurrentButtonsReleased(void);
-void ps2PadSetCurrentButtonsPressed(unsigned int buttons);
-void ps2PadSetCurrentButtonsReleased(unsigned int buttons);
-int ps2PadUpdate(void);
+int dcPadInit(void);
+void dcPadFinish(void);
+DCpadConfig *dcPadGetConf(void);
+bool dcPadGetButtonHold(unsigned int filter);
+bool dcPadGetButtonPressed(unsigned int filter);
+bool dcPadGetButtonReleased(unsigned int filter);
+unsigned int dcPadGetCurrentButtonsPressed(void);
+unsigned int dcPadGetCurrentButtonsReleased(void);
+void dcPadSetCurrentButtonsPressed(unsigned int buttons);
+void dcPadSetCurrentButtonsReleased(unsigned int buttons);
+int dcPadUpdate(void);
 
 #ifdef __cplusplus
 }

@@ -152,7 +152,7 @@ save_list_t user_backup = {
 static int initPad(void)
 {
     // Set sampling mode
-    if (ps2PadInit() < 0)
+    if (dcPadInit() < 0)
     {
         LOG("[ERROR] Failed to open pad!");
         return 0;
@@ -544,16 +544,16 @@ int main(int argc, char *argv[])
 		SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
 		SDL_RenderClear(renderer);
 
-		ps2PadUpdate();
+		dcPadUpdate();
 		drawScene();
 
 		//Draw help
 		if (menu_pad_help[menu_id])
 		{
 			u8 alpha = 0xFF;
-			if (ps2PadGetConf()->idle > 0x100)
+			if (dcPadGetConf()->idle > 0x100)
 			{
-				int dec = (ps2PadGetConf()->idle - 0x100) * 4;
+				int dec = (dcPadGetConf()->idle - 0x100) * 4;
 				if (dec > alpha)
 					dec = alpha;
 				alpha -= dec;
@@ -584,7 +584,7 @@ int main(int argc, char *argv[])
 	// Stop all SDL sub-systems
 	SDL_Quit();
 //	http_end();
-	ps2PadFinish();
+	dcPadFinish();
 	terminate();
 
 	return 0;
