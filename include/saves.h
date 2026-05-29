@@ -108,7 +108,7 @@ enum cmd_code_enum
 #define SAVE_FLAG_ZIP           4
 #define SAVE_FLAG_PS1           8
 #define SAVE_FLAG_PS2           16
-#define SAVE_FLAG_PSP           32
+#define SAVE_FLAG_DC            32
 #define SAVE_FLAG_PACKED        64
 #define SAVE_FLAG_LOCKED        128
 #define SAVE_FLAG_ONLINE        256
@@ -144,7 +144,7 @@ enum char_flag_enum
     CHAR_TAG_PS1,
     CHAR_TAG_PS2,
     CHAR_TAG_UNUSED1,
-    CHAR_TAG_PSP,
+    CHAR_TAG_DC,
     CHAR_TAG_UNUSED2,
     CHAR_TAG_APPLY,
     CHAR_TAG_OWNER,

@@ -75,7 +75,7 @@ enum texture_index
 	tag_pack_png_index,
 	tag_ps1_png_index,
 	tag_ps2_png_index,
-	tag_psp_png_index,
+	tag_dc_png_index,
 	tag_warning_png_index,
 	tag_transfer_png_index,
 	tag_zip_png_index,
