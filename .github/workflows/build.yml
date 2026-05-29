@@ -7,7 +7,7 @@ env:
 
 jobs:
   psp:
-    name: Build (DC)
+    name: Dreamcast Build (KallistiOS)
     runs-on: ubuntu-latest
     container: pcercuei/dreamcast-toolchain:15.2.1-dev
 
