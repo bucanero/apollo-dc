@@ -6,7 +6,7 @@
 #include "utils.h"
 #include "libfont.h"
 #include "menu.h"
-#include "ps2icon.h"
+//#include "ps2icon.h"
 
 #define JAR_COLUMNS (6)
 #define PNG_SIGSIZE (8)
