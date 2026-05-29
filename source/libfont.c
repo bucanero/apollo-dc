@@ -162,7 +162,7 @@ u8 * AddFontFromBitmapArray(u8 *font, u8 *texture, u8 first_char, u8 last_char, 
 
         // White font texture
         for (a = 0; a < h*w; a++)
-            if (buf[a]) buf[a] = 0xFFFF; // white
+            if (buf[a]) buf[a] = 0xFFFF;
 
         surface = SDL_CreateRGBSurfaceFrom((void*) buf, w, h, 16, 2 * w, 0x7C00, 0x03E0, 0x001F, 0x8000);
         *((SDL_Texture**) texture) = SDL_CreateTextureFromSurface(renderer, surface);
