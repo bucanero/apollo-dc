@@ -20,9 +20,9 @@ jobs:
           apk add gmp mpc1 mpfr4 make cmake git
           git clone https://github.com/bucanero/dbglogger
           git clone --branch v1.1.2 https://github.com/bucanero/apollo-lib
-          git clone --branch dreamcastSDL2 https://github.com/GPF/SDL
-          git clone https://github.com/KallistiOS/KallistiOS.git -b master /opt/toolchains/dc/kos
-          git clone --recursive https://github.com/KallistiOS/kos-ports /opt/toolchains/dc/kos-ports
+          git clone --depth 1 --branch dreamcastSDL2 https://github.com/GPF/SDL
+          git clone --depth 1 https://github.com/KallistiOS/KallistiOS.git -b master /opt/toolchains/dc/kos
+          git clone --depth 1 --recursive https://github.com/KallistiOS/kos-ports /opt/toolchains/dc/kos-ports
 
       - name: build KOS
         run: |
@@ -35,45 +35,46 @@ jobs:
         run: |
           cd /opt/toolchains/dc/kos-ports
           . /opt/toolchains/dc/kos/environ.sh
-          cd zlib
-          make install
-          cd ../polarssl
-          make install
-          cd ../libpng
-          make install
-          cd ../libzip
-          make install
-          cd ../libGL
-          make install
-          cd ../freetype
-          make install
-          cd ../mbedtls
-          make install
-          cd ../curl
-          make install
+          curl -sL https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17/archive_kos-ports.tar.gz  | tar xz -C ./
+#          cd zlib
+#          make install
+#          cd ../polarssl
+#          make install
+#          cd ../libpng
+#          make install
+#          cd ../libzip
+#          make install
+#          cd ../libGL
+#          make install
+#          cd ../freetype
+#          make install
+#          cd ../mbedtls
+#          make install
+#          cd ../curl
+#          make install
 
       - name: build SDL2
         run: |
           cd SDL/build-scripts
           . /opt/toolchains/dc/kos/environ.sh
-          ./dreamcast.sh
+          curl -sL https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17/archive_addons.tar.gz | tar xz -C ./
+#          ./dreamcast.sh
 
       - name: build dbglogger
         run: |
           cd dbglogger
           . /opt/toolchains/dc/kos/environ.sh
-          make -f Makefile.DC install
+#          make -f Makefile.DC install
 
       - name: build apollo lib
         run: |
           cd apollo-lib
           . /opt/toolchains/dc/kos/environ.sh
-          make -f Makefile.DC install
+#          make -f Makefile.DC install
 
       - name: Configure project
         run: |
-          cmake -S . \
-                -DCMAKE_TOOLCHAIN_FILE=$PS2DEV/ps2sdk/ps2dev.cmake \
+          kos-cmake -S . \
                 -D CMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
 
       - name: Build project
@@ -87,5 +88,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apollo-dc-build_${{ env.sha_name }}
-          path: APOLLO.ELF
+          path: APOLLO-DC.ELF
           if-no-files-found: error
