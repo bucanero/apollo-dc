@@ -33,8 +33,8 @@ jobs:
 
       - name: build KOS-ports
         run: |
-          cd /opt/toolchains/dc/kos-ports
           . /opt/toolchains/dc/kos/environ.sh
+          cd /opt/toolchains/dc/kos-ports
           curl -sL https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17/archive_kos-ports.tar.gz  | tar xz -C ./
 #          cd zlib
 #          make install
@@ -55,22 +55,22 @@ jobs:
 
       - name: build SDL2
         run: |
-          cd SDL/build-scripts
           . /opt/toolchains/dc/kos/environ.sh
           cd /opt/toolchains/dc/kos/addons
           curl -sL https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17/archive_addons.tar.gz | tar xz -C ./
+          cd SDL/build-scripts
 #          ./dreamcast.sh
 
       - name: build dbglogger
         run: |
-          cd dbglogger
           . /opt/toolchains/dc/kos/environ.sh
+          cd dbglogger
 #          make -f Makefile.DC install
 
       - name: build apollo lib
         run: |
-          cd apollo-lib
           . /opt/toolchains/dc/kos/environ.sh
+          cd apollo-lib
 #          make -f Makefile.DC install
 
       - name: Build project
