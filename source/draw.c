@@ -163,8 +163,21 @@ static rawImage_t *imgLoadPngFromFile(const char *path)
 
 static void rawImageTexture(const rawImage_t *img, png_texture *tex)
 {
-	SDL_Surface* surface = SDL_CreateRGBSurfaceFrom(img->datap, img->width, img->height, 32, 4 * img->width,
-												0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+	// convert ARGB8888 to ARGB1555
+	uint16_t *ptr = (uint16_t *)img->datap;
+	for (int i = 0; i < img->width * img->height; i++)
+	{
+		uint32_t pixel = img->datap[i];
+		uint8_t a = (((pixel >> 24) & 0xFF) > 127) ? 1 : 0; // 1 bit alpha
+		uint8_t r = ((pixel >> 16) & 0xFF) >> 3;
+		uint8_t g = ((pixel >> 8) & 0xFF) >> 3;
+		uint8_t b = (pixel & 0xFF) >> 3;
+		
+		ptr[i] = (a << 15) | (b << 10) | (g << 5) | r;
+	}
+
+	SDL_Surface* surface = SDL_CreateRGBSurfaceFrom(img->datap, img->width, img->height, 16, 2 * img->width,
+												0x00007C00, 0x000003E0, 0x0000001F, 0x00008000);
 
 	tex->width = img->width;
 	tex->height = img->height;

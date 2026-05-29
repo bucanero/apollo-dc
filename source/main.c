@@ -477,7 +477,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Create a renderer (OpenGL ES2)
-	renderer = SDL_CreateRenderer(window, -1, 0 | SDL_RENDERER_PRESENTVSYNC); //SDL_RENDERER_ACCELERATED
+	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if (!renderer) {
 		LOG("SDL_CreateRenderer: %s", SDL_GetError());
 		return (-1);
