@@ -72,13 +72,11 @@ jobs:
           . /opt/toolchains/dc/kos/environ.sh
 #          make -f Makefile.DC install
 
-      - name: Configure project
-        run: |
-          kos-cmake -S . \
-                -D CMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-
       - name: Build project
-        run: make
+        run: |
+          . /opt/toolchains/dc/kos/environ.sh
+          kos-cmake -S . -D CMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          make
 
       - name: Compress binary
         run: |
