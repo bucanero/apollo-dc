@@ -1,7 +1,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <libpng16/png.h>
+#include <png/png.h>
 
 #include "utils.h"
 #include "libfont.h"
@@ -184,7 +184,7 @@ int LoadRawIconTexture(uint8_t* icon, int idx)
 	if (!icon)
 		return 0;
 
-	raw.datap = (uint32_t*) ps2IconTexture(icon);
+	raw.datap = (uint32_t*) calloc(4, 128*128);//ps2IconTexture(icon);
 	free(icon);
 
 	if (!raw.datap)
