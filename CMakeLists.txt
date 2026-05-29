@@ -70,7 +70,6 @@ add_executable(${PROJECT_NAME}
   source/exec_cmd.c
 ##  source/http.c
   source/libfont.c
-  source/lzari.c
   source/main.c
   source/menu_hex.c
   source/menu_about.c
