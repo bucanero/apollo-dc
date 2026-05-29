@@ -8,7 +8,7 @@ endif()
 
 project(APOLLO-DC)
 
-find_package(SDL2 REQUIRED)
+#find_package(SDL2 REQUIRED)
 find_package(CURL REQUIRED)
 
 option(APOLLO_ENABLE_LOGGING "enables debug logging over UDP multicast" OFF)
