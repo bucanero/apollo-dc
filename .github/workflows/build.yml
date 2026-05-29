@@ -19,7 +19,7 @@ jobs:
           apk update
           apk add gmp mpc1 mpfr4 make cmake git
           git clone https://github.com/bucanero/dbglogger
-          git clone --branch v1.1.2 https://github.com/bucanero/apollo-lib
+          git clone --branch v1.4.0 https://github.com/bucanero/apollo-lib
           git clone --depth 1 --branch dreamcastSDL2 https://github.com/GPF/SDL
           git clone --depth 1 https://github.com/KallistiOS/KallistiOS.git -b master /opt/toolchains/dc/kos
           git clone --depth 1 --recursive https://github.com/KallistiOS/kos-ports /opt/toolchains/dc/kos-ports
