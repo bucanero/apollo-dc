@@ -839,7 +839,7 @@ static void read_usb_encrypted_saves(const char* userPath, list_t *list, uint64_
 				continue;
 
 			snprintf(savePath, sizeof(savePath), "(Encrypted) %s/%s", dir->d_name, dir2->d_name);
-			item = _createSaveEntry(SAVE_FLAG_PSP | 0, savePath);
+			item = _createSaveEntry(SAVE_FLAG_DC | 0, savePath);
 			item->type = FILE_TYPE_PSV;
 
 			asprintf(&item->path, "%s%s/", userPath, dir->d_name);

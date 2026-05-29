@@ -81,7 +81,7 @@ add_executable(${PROJECT_NAME}
   source/settings.c
   source/ttf_fonts.c
   source/util.c
-  source/ps2pad.c
+  source/dcpad.c
 #  source/ps2icon.c
 #  source/import_ps2.c
 #  source/psv_resign.c

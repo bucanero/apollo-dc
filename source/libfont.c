@@ -73,7 +73,7 @@ special_char* GetSpecialCharFromValue(const char value)
 	return ret;
 }
 
-void ResetFont()
+void ResetFont(void)
 {
     font_datas.current_font = font_datas.number_of_fonts =0;
 
@@ -90,7 +90,7 @@ void ResetFont()
 u8 * AddFontFromBitmapArray(u8 *font, u8 *texture, u8 first_char, u8 last_char, int w, int h, int bits_per_pixel, int byte_order)
 {
     int n, a, b;
-    u32 buf[w*h];
+    u16 buf[w*h];
     u8 i;
     
     if(font_datas.number_of_fonts >= 8) return texture;
@@ -143,7 +143,7 @@ u8 * AddFontFromBitmapArray(u8 *font, u8 *texture, u8 first_char, u8 last_char, 
                     //i>>=3;
                     //*((u16 *) texture) = (1<<15) | (i<<10) | (i<<5) | (i);
                     //TINY3D_TEX_FORMAT_A4R4G4B4
-                    buf[a*w + b] = 0xFF000000;
+                    buf[a*w + b] = 0x8000;
 //                    i>>=4;
 //                    *((u16 *) texture) = (i<<12) | 0xfff;
                 } else {
@@ -155,16 +155,16 @@ u8 * AddFontFromBitmapArray(u8 *font, u8 *texture, u8 first_char, u8 last_char, 
         }
 
         // Black font texture
-        SDL_Surface* surface = SDL_CreateRGBSurfaceFrom((void*) buf, w, h, 32, 4 * w, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+        SDL_Surface* surface = SDL_CreateRGBSurfaceFrom((void*) buf, w, h, 16, 2 * w, 0x7C00, 0x03E0, 0x001F, 0x8000);
         *((SDL_Texture**) texture) = SDL_CreateTextureFromSurface(renderer, surface);
         SDL_FreeSurface(surface);
         texture += sizeof(SDL_Texture*);
 
         // White font texture
         for (a = 0; a < h*w; a++)
-            if (buf[a]) buf[a] = 0xFFFFFFFF;
+            if (buf[a]) buf[a] = 0xFFFF;
 
-        surface = SDL_CreateRGBSurfaceFrom((void*) buf, w, h, 32, 4 * w, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+        surface = SDL_CreateRGBSurfaceFrom((void*) buf, w, h, 16, 2 * w, 0x7C00, 0x03E0, 0x001F, 0x8000);
         *((SDL_Texture**) texture) = SDL_CreateTextureFromSurface(renderer, surface);
         SDL_FreeSurface(surface);
         texture += sizeof(SDL_Texture*);

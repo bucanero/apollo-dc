@@ -14,7 +14,7 @@
 
 #define LOG dbglogger_log
 
-static Ps2PadConfig ps2PadConf;
+static DCpadConfig dcPadConf;
 static int orbispad_initialized = 0;
 static uint64_t g_time;
 static int sCurrentGameControllerIndex = -1;
@@ -58,7 +58,7 @@ static uint64_t timeInMilliseconds(void)
     return (((uint64_t)tv.tv_sec)*1000)+(tv.tv_usec/1000);
 }
 
-void ps2PadFinish(void)
+void dcPadFinish(void)
 {
 	if(orbispad_initialized)
 	{
@@ -69,54 +69,54 @@ void ps2PadFinish(void)
 	LOG("ORBISPAD finished");
 }
 
-Ps2PadConfig *ps2PadGetConf(void)
+DCpadConfig *dcPadGetConf(void)
 {
 	if(orbispad_initialized)
 	{
-		return (&ps2PadConf);
+		return (&dcPadConf);
 	}
 	
 	return NULL; 
 }
 
-static int ps2PadInitConf(void)
+static int dcPadInitConf(void)
 {	
 	if(orbispad_initialized)
 	{
 		return orbispad_initialized;
 	}
 
-	memset(&ps2PadConf, 0, sizeof(Ps2PadConfig));
+	memset(&dcPadConf, 0, sizeof(DCpadConfig));
 	
 	return 0;
 }
 
-unsigned int ps2PadGetCurrentButtonsPressed(void)
+unsigned int dcPadGetCurrentButtonsPressed(void)
 {
-	return ps2PadConf.buttonsPressed;
+	return dcPadConf.buttonsPressed;
 }
 
-void ps2PadSetCurrentButtonsPressed(unsigned int buttons)
+void dcPadSetCurrentButtonsPressed(unsigned int buttons)
 {
-	ps2PadConf.buttonsPressed=buttons;
+	dcPadConf.buttonsPressed=buttons;
 }
 
-unsigned int ps2PadGetCurrentButtonsReleased(void)
+unsigned int dcPadGetCurrentButtonsReleased(void)
 {
-	return ps2PadConf.buttonsReleased;
+	return dcPadConf.buttonsReleased;
 }
 
-void ps2PadSetCurrentButtonsReleased(unsigned int buttons)
+void dcPadSetCurrentButtonsReleased(unsigned int buttons)
 {
-	ps2PadConf.buttonsReleased=buttons;
+	dcPadConf.buttonsReleased=buttons;
 }
 
-bool ps2PadGetButtonHold(unsigned int filter)
+bool dcPadGetButtonHold(unsigned int filter)
 {
 	uint64_t time = timeInMilliseconds();
 	uint64_t delta = time - g_time;
 
-	if((ps2PadConf.buttonsHold&filter)==filter && delta > 0x4000)
+	if((dcPadConf.buttonsHold&filter)==filter && delta > 0x100)
 	{
 		g_time = time;
 		return 1;
@@ -125,22 +125,22 @@ bool ps2PadGetButtonHold(unsigned int filter)
 	return 0;
 }
 
-bool ps2PadGetButtonPressed(unsigned int filter)
+bool dcPadGetButtonPressed(unsigned int filter)
 {
-	if((ps2PadConf.buttonsPressed&filter)==filter)
+	if((dcPadConf.buttonsPressed&filter)==filter)
 	{
-		ps2PadConf.buttonsPressed ^= filter;
+		dcPadConf.buttonsPressed ^= filter;
 		return 1;
 	}
 
 	return 0;
 }
 
-bool ps2PadGetButtonReleased(unsigned int filter)
+bool dcPadGetButtonReleased(unsigned int filter)
 {
- 	if((ps2PadConf.buttonsReleased&filter)==filter)
+ 	if((dcPadConf.buttonsReleased&filter)==filter)
 	{
-		if(~(ps2PadConf.padDataLast)&filter)
+		if(~(dcPadConf.padDataLast)&filter)
 		{
 			return 0;
 		}
@@ -150,12 +150,12 @@ bool ps2PadGetButtonReleased(unsigned int filter)
 	return 0;
 }
 
-int ps2PadUpdate(void)
+int dcPadUpdate(void)
 {
 	unsigned int actualButtons=0;
 	unsigned int lastButtons=0;
 
-	ps2PadConf.padDataLast = ps2PadConf.padDataCurrent;
+	dcPadConf.padDataLast = dcPadConf.padDataCurrent;
 	SDL_GameControllerUpdate();
 
 /*
@@ -164,83 +164,83 @@ int ps2PadUpdate(void)
 	ret = SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_B);
 	if (ret) LOG("SDL_CONTROLLER_BUTTON_B: %d", ret);
 */
-	ps2PadConf.padDataCurrent = 0;
+	dcPadConf.padDataCurrent = 0;
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_DPAD_UP))
-		ps2PadConf.padDataCurrent |= CONT_DPAD_UP;
+		dcPadConf.padDataCurrent |= CONT_DPAD_UP;
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_DPAD_DOWN))
-		ps2PadConf.padDataCurrent |= CONT_DPAD_DOWN;
+		dcPadConf.padDataCurrent |= CONT_DPAD_DOWN;
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_DPAD_LEFT))
-		ps2PadConf.padDataCurrent |= CONT_DPAD_LEFT;
+		dcPadConf.padDataCurrent |= CONT_DPAD_LEFT;
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_DPAD_RIGHT))
-		ps2PadConf.padDataCurrent |= CONT_DPAD_RIGHT;
+		dcPadConf.padDataCurrent |= CONT_DPAD_RIGHT;
 
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_A))
-		ps2PadConf.padDataCurrent |= CONT_A;
+		dcPadConf.padDataCurrent |= CONT_A;
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_B))
-		ps2PadConf.padDataCurrent |= CONT_B;
+		dcPadConf.padDataCurrent |= CONT_B;
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_X))
-		ps2PadConf.padDataCurrent |= CONT_X;
+		dcPadConf.padDataCurrent |= CONT_X;
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_Y))
-		ps2PadConf.padDataCurrent |= CONT_Y;
+		dcPadConf.padDataCurrent |= CONT_Y;
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_START))
-		ps2PadConf.padDataCurrent |= CONT_START;
+		dcPadConf.padDataCurrent |= CONT_START;
 //	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_BACK))
-//		ps2PadConf.padDataCurrent |= CONT_DPAD_SELECT;
+//		dcPadConf.padDataCurrent |= CONT_DPAD_SELECT;
 
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER))
-		ps2PadConf.padDataCurrent |= CONT_LTRIGGER;
+		dcPadConf.padDataCurrent |= CONT_LTRIGGER;
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER))
-		ps2PadConf.padDataCurrent |= CONT_RTRIGGER;
+		dcPadConf.padDataCurrent |= CONT_RTRIGGER;
 /*
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_LEFTSTICK))
-		ps2PadConf.padDataCurrent |= CONT_DPAD_L3;
+		dcPadConf.padDataCurrent |= CONT_DPAD_L3;
 	if (SDL_GameControllerGetButton(sCurrentGameController, SDL_CONTROLLER_BUTTON_RIGHTSTICK))
-		ps2PadConf.padDataCurrent |= CONT_DPAD_R3;
+		dcPadConf.padDataCurrent |= CONT_DPAD_R3;
 	if (SDL_GameControllerGetAxis(sCurrentGameController, SDL_CONTROLLER_AXIS_TRIGGERLEFT))
-		ps2PadConf.padDataCurrent |= CONT_DPAD_L2;
+		dcPadConf.padDataCurrent |= CONT_DPAD_L2;
 	if (SDL_GameControllerGetAxis(sCurrentGameController, SDL_CONTROLLER_AXIS_TRIGGERRIGHT))
-		ps2PadConf.padDataCurrent |= CONT_DPAD_R2;
+		dcPadConf.padDataCurrent |= CONT_DPAD_R2;
 */
 /*
 		if (buttons.ljoy_v < ANALOG_MIN)
-			ps2PadConf.padDataCurrent |= CONT_DPAD_UP;
+			dcPadConf.padDataCurrent |= CONT_DPAD_UP;
 
 		if (buttons.ljoy_v > ANALOG_MAX)
-			ps2PadConf.padDataCurrent |= CONT_DPAD_DOWN;
+			dcPadConf.padDataCurrent |= CONT_DPAD_DOWN;
 
 		if (buttons.ljoy_h < ANALOG_MIN)
-			ps2PadConf.padDataCurrent |= CONT_DPAD_LEFT;
+			dcPadConf.padDataCurrent |= CONT_DPAD_LEFT;
 
 		if (buttons.ljoy_h > ANALOG_MAX)
-			ps2PadConf.padDataCurrent |= CONT_DPAD_RIGHT;
+			dcPadConf.padDataCurrent |= CONT_DPAD_RIGHT;
 */
 
-	actualButtons=ps2PadConf.padDataCurrent;
-	lastButtons=ps2PadConf.padDataLast;
-	ps2PadConf.buttonsPressed=(actualButtons)&(~lastButtons);
+	actualButtons=dcPadConf.padDataCurrent;
+	lastButtons=dcPadConf.padDataLast;
+	dcPadConf.buttonsPressed=(actualButtons)&(~lastButtons);
 	if(actualButtons!=lastButtons)
 	{
-		ps2PadConf.buttonsReleased=(~actualButtons)&(lastButtons);
-		ps2PadConf.idle=0;
+		dcPadConf.buttonsReleased=(~actualButtons)&(lastButtons);
+		dcPadConf.idle=0;
 	}
 	else
 	{
-		ps2PadConf.buttonsReleased=0;
+		dcPadConf.buttonsReleased=0;
 		if (actualButtons == 0)
 		{
-			ps2PadConf.idle++;
+			dcPadConf.idle++;
 		}
 	}
-	ps2PadConf.buttonsHold=actualButtons&lastButtons;
+	dcPadConf.buttonsHold=actualButtons&lastButtons;
 
 	return 0;
 }
 
-int ps2PadInit(void)
+int dcPadInit(void)
 {
 	int ret;
 
-	if(ps2PadInitConf()==1)
+	if(dcPadInitConf()==1)
 	{
 		LOG("ORBISPAD already initialized!");
 		return orbispad_initialized;

@@ -77,12 +77,12 @@ int show_dialog(int tdialog, const char * format, ...)
         DrawBackgroundTexture(0, 0xFF);
 
         drawDialog(buf, (tdialog == DIALOG_TYPE_YESNO) ? yesno_opt : ok_opt, -1);
-        ps2PadUpdate();
-        if (ps2PadGetButtonPressed(CONT_B))
+        dcPadUpdate();
+        if (dcPadGetButtonPressed(CONT_B))
             return 0;
 
         SDL_RenderPresent(renderer);
-    } while (!ps2PadGetButtonPressed(CONT_A));
+    } while (!dcPadGetButtonPressed(CONT_A));
 
     return (1);
 }
@@ -96,18 +96,18 @@ int show_multi_dialog(const char** options, const char * msg)
         DrawBackgroundTexture(0, 0xFF);
 
         drawDialog(msg, options, sel);
-        ps2PadUpdate();
-        if (ps2PadGetButtonPressed(CONT_B))
+        dcPadUpdate();
+        if (dcPadGetButtonPressed(CONT_B))
             return (-1);
 
-        if (ps2PadGetButtonPressed(CONT_DPAD_UP) && sel > 0)
+        if (dcPadGetButtonPressed(CONT_DPAD_UP) && sel > 0)
             sel--;
 
-        if (ps2PadGetButtonPressed(CONT_DPAD_DOWN) && options[sel+1] != NULL)
+        if (dcPadGetButtonPressed(CONT_DPAD_DOWN) && options[sel+1] != NULL)
             sel++;
 
         SDL_RenderPresent(renderer);
-    } while (!ps2PadGetButtonPressed(CONT_A));
+    } while (!dcPadGetButtonPressed(CONT_A));
 
     return (sel);
 }

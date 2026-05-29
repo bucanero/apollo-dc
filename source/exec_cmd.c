@@ -423,7 +423,7 @@ static int webReqHandler(dWebRequest_t* req, dWebResponse_t* res, void* list)
 		int i = 0;
 		for (node = list_head(list); (item = list_get(node)); node = list_next(node), i++)
 		{
-			if (item->type == FILE_TYPE_MENU || !(item->flags & (SAVE_FLAG_PS1|SAVE_FLAG_PSP)))
+			if (item->type == FILE_TYPE_MENU || !(item->flags & (SAVE_FLAG_PS1|SAVE_FLAG_DC)))
 				continue;
 
 			fprintf(f, "<tr><td><a href=\"/zip/%08d/%s_%s.zip\">%s</a></td>", i, item->title_id, item->dir_name, item->name);
@@ -450,7 +450,7 @@ static int webReqHandler(dWebRequest_t* req, dWebResponse_t* res, void* list)
 
 		for (node = list_head(list); (item = list_get(node)); node = list_next(node))
 		{
-			if (item->type == FILE_TYPE_MENU || !(item->flags & SAVE_FLAG_PSP))
+			if (item->type == FILE_TYPE_MENU || !(item->flags & SAVE_FLAG_DC))
 				continue;
 
 			fprintf(f, "%s=%s\n", item->title_id, item->name);
@@ -472,7 +472,7 @@ static int webReqHandler(dWebRequest_t* req, dWebResponse_t* res, void* list)
 		int i = 0;
 		for (node = list_head(list); (item = list_get(node)); node = list_next(node), i++)
 		{
-			if (item->type == FILE_TYPE_MENU || !(item->flags & SAVE_FLAG_PSP) || strncmp(item->title_id, req->resource + 5, 9))
+			if (item->type == FILE_TYPE_MENU || !(item->flags & SAVE_FLAG_DC) || strncmp(item->title_id, req->resource + 5, 9))
 				continue;
 
 			fprintf(f, "%08d.zip=(%s) %s\n", i, item->dir_name, item->name);
@@ -511,7 +511,7 @@ static int webReqHandler(dWebRequest_t* req, dWebResponse_t* res, void* list)
 	{
 		for (node = list_head(list); (item = list_get(node)); node = list_next(node))
 		{
-			if (item->type == FILE_TYPE_MENU || !(item->flags & SAVE_FLAG_PSP) || strncmp(item->title_id, req->resource + 5, 9))
+			if (item->type == FILE_TYPE_MENU || !(item->flags & SAVE_FLAG_DC) || strncmp(item->title_id, req->resource + 5, 9))
 				continue;
 
 			asprintf(&res->data, "%sICON0.PNG", item->path);
@@ -701,7 +701,7 @@ static int apply_cheat_patches(const save_entry_t* entry)
 			snprintf(tmpfile, sizeof(tmpfile), "%s%s", entry->path, filename);
 			LOG("Decrypting file '%s'", tmpfile);
 
-			if (entry->flags & SAVE_FLAG_PSP && !psp_is_decrypted(decrypted_files, filename))
+			if (entry->flags & SAVE_FLAG_DC && !psp_is_decrypted(decrypted_files, filename))
 			{
 if(0)//				if (get_psp_save_key(entry, key) && psp_DecryptSavedata(entry->path, tmpfile, key))
 				{
@@ -926,7 +926,7 @@ static void exportSaveFile(const save_entry_t* entry, const char* filename)
 	char path[256];
 	uint8_t key[16];
 
-if(0)//	if (entry->flags & SAVE_FLAG_PSP && !get_psp_save_key(entry, key))
+if(0)//	if (entry->flags & SAVE_FLAG_DC && !get_psp_save_key(entry, key))
 	{
 		show_message("Error! No game decryption key available for %s", entry->title_id);
 		return;
@@ -940,7 +940,7 @@ if(0)//	if (entry->flags & SAVE_FLAG_PSP && !get_psp_save_key(entry, key))
 	if (_copy_save_file(entry->path, path, filename))
 	{
 		strlcat(path, filename, sizeof(path));
-if(0)//		if (entry->flags & SAVE_FLAG_PSP && !psp_DecryptSavedata(entry->path, path, key))
+if(0)//		if (entry->flags & SAVE_FLAG_DC && !psp_DecryptSavedata(entry->path, path, key))
 			show_message("Error! File %s couldn't be exported", filename);
 
 		show_message("File successfully exported to:\n%s", path);
@@ -954,7 +954,7 @@ static void importSaveFile(const save_entry_t* entry, const char* filename)
 	char path[256];
 	uint8_t key[16];
 
-if(0)//	if (entry->flags & SAVE_FLAG_PSP && !get_psp_save_key(entry, key))
+if(0)//	if (entry->flags & SAVE_FLAG_DC && !get_psp_save_key(entry, key))
 	{
 		show_message("Error! No game decryption key available for %s", entry->title_id);
 		return;
@@ -972,7 +972,7 @@ if(0)//	if (entry->flags & SAVE_FLAG_PSP && !get_psp_save_key(entry, key))
 
 	if (_copy_save_file(path, entry->path, filename))
 	{
-if(0)//		if (entry->flags & SAVE_FLAG_PSP && !psp_EncryptSavedata(entry->path, filename, key))
+if(0)//		if (entry->flags & SAVE_FLAG_DC && !psp_EncryptSavedata(entry->path, filename, key))
 			show_message("Error! File %s couldn't be imported", filename);
 
 		show_message("File successfully imported to:\n%s%s", entry->path, filename);

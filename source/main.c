@@ -152,7 +152,7 @@ save_list_t user_backup = {
 static int initPad(void)
 {
     // Set sampling mode
-    if (ps2PadInit() < 0)
+    if (dcPadInit() < 0)
     {
         LOG("[ERROR] Failed to open pad!");
         return 0;
@@ -191,10 +191,10 @@ static int LoadTextures_Menu(void)
 	load_menu_texture(circle_loading_seek, png);
 	load_menu_texture(edit_shadow, png);
 
-	load_menu_texture(footer_ico_circle, png);
-	load_menu_texture(footer_ico_cross, png);
-	load_menu_texture(footer_ico_square, png);
-	load_menu_texture(footer_ico_triangle, png);
+	load_menu_texture(footer_ico_a, png);
+	load_menu_texture(footer_ico_b, png);
+	load_menu_texture(footer_ico_x, png);
+	load_menu_texture(footer_ico_y, png);
 	load_menu_texture(header_dot, png);
 	load_menu_texture(header_line, png);
 
@@ -242,7 +242,7 @@ static int LoadTextures_Menu(void)
 	load_menu_texture(tag_pack, png);
 	load_menu_texture(tag_ps1, png);
 	load_menu_texture(tag_ps2, png);
-	load_menu_texture(tag_psp, png);
+	load_menu_texture(tag_dc, png);
 	load_menu_texture(tag_warning, png);
 	load_menu_texture(tag_zip, png);
 	load_menu_texture(tag_net, png);
@@ -314,7 +314,7 @@ static void registerSpecialChars(void)
 	// Register save tags
 	RegisterSpecialCharacter(CHAR_TAG_PS1, 0, 1.5, &menu_textures[tag_ps1_png_index]);
 	RegisterSpecialCharacter(CHAR_TAG_PS2, 0, 1.5, &menu_textures[tag_ps2_png_index]);
-	RegisterSpecialCharacter(CHAR_TAG_PSP, 0, 1.5, &menu_textures[tag_psp_png_index]);
+	RegisterSpecialCharacter(CHAR_TAG_DC, 0, 1.5, &menu_textures[tag_dc_png_index]);
 	RegisterSpecialCharacter(CHAR_TAG_PACK, 0, 0.8, &menu_textures[tag_pack_png_index]);
 	RegisterSpecialCharacter(CHAR_TAG_LOCKED, 0, 1.3, &menu_textures[tag_lock_png_index]);
 	RegisterSpecialCharacter(CHAR_TAG_OWNER, 0, 1.3, &menu_textures[tag_own_png_index]);
@@ -325,10 +325,10 @@ static void registerSpecialChars(void)
 	RegisterSpecialCharacter(CHAR_TAG_TRANSFER, 0, 1.0, &menu_textures[tag_transfer_png_index]);
 
 	// Register button icons
-	RegisterSpecialCharacter(CHAR_BTN_X, 0, 1.2, &menu_textures[footer_ico_cross_png_index]);
-	RegisterSpecialCharacter(CHAR_BTN_S, 0, 1.2, &menu_textures[footer_ico_square_png_index]);
-	RegisterSpecialCharacter(CHAR_BTN_T, 0, 1.2, &menu_textures[footer_ico_triangle_png_index]);
-	RegisterSpecialCharacter(CHAR_BTN_O, 0, 1.2, &menu_textures[footer_ico_circle_png_index]);
+	RegisterSpecialCharacter(CHAR_BTN_X, 0, 1.2, &menu_textures[footer_ico_x_png_index]);
+	RegisterSpecialCharacter(CHAR_BTN_Y, 0, 1.2, &menu_textures[footer_ico_y_png_index]);
+	RegisterSpecialCharacter(CHAR_BTN_A, 0, 1.2, &menu_textures[footer_ico_a_png_index]);
+	RegisterSpecialCharacter(CHAR_BTN_B, 0, 1.2, &menu_textures[footer_ico_b_png_index]);
 
 	// Register trophy icons
 	RegisterSpecialCharacter(CHAR_TRP_GOLD, 2, 0.9f, &menu_textures[trp_gold_png_index]);
@@ -477,7 +477,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Create a renderer (OpenGL ES2)
-	renderer = SDL_CreateRenderer(window, -1, 0 | SDL_RENDERER_PRESENTVSYNC); //SDL_RENDERER_ACCELERATED
+	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if (!renderer) {
 		LOG("SDL_CreateRenderer: %s", SDL_GetError());
 		return (-1);
@@ -544,16 +544,16 @@ int main(int argc, char *argv[])
 		SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
 		SDL_RenderClear(renderer);
 
-		ps2PadUpdate();
+		dcPadUpdate();
 		drawScene();
 
 		//Draw help
 		if (menu_pad_help[menu_id])
 		{
 			u8 alpha = 0xFF;
-			if (ps2PadGetConf()->idle > 0x100)
+			if (dcPadGetConf()->idle > 0x100)
 			{
-				int dec = (ps2PadGetConf()->idle - 0x100) * 4;
+				int dec = (dcPadGetConf()->idle - 0x100) * 4;
 				if (dec > alpha)
 					dec = alpha;
 				alpha -= dec;
@@ -584,7 +584,7 @@ int main(int argc, char *argv[])
 	// Stop all SDL sub-systems
 	SDL_Quit();
 //	http_end();
-	ps2PadFinish();
+	dcPadFinish();
 	terminate();
 
 	return 0;

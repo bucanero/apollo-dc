@@ -108,7 +108,7 @@ enum cmd_code_enum
 #define SAVE_FLAG_ZIP           4
 #define SAVE_FLAG_PS1           8
 #define SAVE_FLAG_PS2           16
-#define SAVE_FLAG_PSP           32
+#define SAVE_FLAG_DC            32
 #define SAVE_FLAG_PACKED        64
 #define SAVE_FLAG_LOCKED        128
 #define SAVE_FLAG_ONLINE        256
@@ -144,7 +144,7 @@ enum char_flag_enum
     CHAR_TAG_PS1,
     CHAR_TAG_PS2,
     CHAR_TAG_UNUSED1,
-    CHAR_TAG_PSP,
+    CHAR_TAG_DC,
     CHAR_TAG_UNUSED2,
     CHAR_TAG_APPLY,
     CHAR_TAG_OWNER,
@@ -157,9 +157,9 @@ enum char_flag_enum
     CHAR_TAG_PACK,
     CHAR_TAG_WARNING,
     CHAR_BTN_X,
-    CHAR_BTN_S,
-    CHAR_BTN_T,
-    CHAR_BTN_O,
+    CHAR_BTN_Y,
+    CHAR_BTN_A,
+    CHAR_BTN_B,
     CHAR_TRP_BRONZE,
     CHAR_TRP_SILVER,
     CHAR_TRP_GOLD,
