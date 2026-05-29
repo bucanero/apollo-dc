@@ -1,0 +1,91 @@
+name: DC Build
+
+on: [push, pull_request]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  psp:
+    name: Dreamcast Build (KOS)
+    runs-on: ubuntu-latest
+    container: pcercuei/dreamcast-toolchain:15.2.1-dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          apk update
+          apk add gmp mpc1 mpfr4 make cmake git
+          git clone https://github.com/bucanero/dbglogger
+          git clone --branch v1.1.2 https://github.com/bucanero/apollo-lib
+          git clone --depth 1 --branch dreamcastSDL2 https://github.com/GPF/SDL
+          git clone --depth 1 https://github.com/KallistiOS/KallistiOS.git -b master /opt/toolchains/dc/kos
+          git clone --depth 1 --recursive https://github.com/KallistiOS/kos-ports /opt/toolchains/dc/kos-ports
+
+      - name: build KOS
+        run: |
+          cd /opt/toolchains/dc/kos
+          cp doc/environ.sh.sample environ.sh
+          . /opt/toolchains/dc/kos/environ.sh
+          make
+
+      - name: build KOS-ports
+        run: |
+          . /opt/toolchains/dc/kos/environ.sh
+          cd /opt/toolchains/dc/kos-ports
+          curl -sL https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17/archive_kos-ports.tar.gz  | tar xz -C ./
+#          cd zlib
+#          make install
+#          cd ../polarssl
+#          make install
+#          cd ../libpng
+#          make install
+#          cd ../libzip
+#          make install
+#          cd ../libGL
+#          make install
+#          cd ../freetype
+#          make install
+#          cd ../mbedtls
+#          make install
+#          cd ../curl
+#          make install
+
+      - name: build SDL2
+        run: |
+          . /opt/toolchains/dc/kos/environ.sh
+          cd /opt/toolchains/dc/kos/addons
+          curl -sL https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17/archive_addons.tar.gz | tar xz -C ./
+#          cd SDL/build-scripts
+#          ./dreamcast.sh
+
+      - name: build dbglogger
+        run: |
+          . /opt/toolchains/dc/kos/environ.sh
+          cd dbglogger
+#          make -f Makefile.DC install
+
+      - name: build apollo lib
+        run: |
+          . /opt/toolchains/dc/kos/environ.sh
+          cd apollo-lib
+#          make -f Makefile.DC install
+
+      - name: Build project
+        run: |
+          . /opt/toolchains/dc/kos/environ.sh
+          kos-cmake -S . -D CMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          make
+
+      - name: Compress binary
+        run: |
+          echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
+
+      - name: Upload application
+        uses: actions/upload-artifact@v4
+        with:
+          name: apollo-dc-build_${{ env.sha_name }}
+          path: APOLLO-DC.elf
+          if-no-files-found: error

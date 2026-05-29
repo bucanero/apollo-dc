@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.5)
 
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   if(NOT DEFINED ENV{KOS_BASE})
@@ -8,7 +8,7 @@ endif()
 
 project(APOLLO-DC)
 
-find_package(SDL2 REQUIRED)
+#find_package(SDL2 REQUIRED)
 find_package(CURL REQUIRED)
 
 option(APOLLO_ENABLE_LOGGING "enables debug logging over UDP multicast" OFF)
@@ -25,6 +25,7 @@ include_directories(
   include
   $ENV{KOS_PORTS}/include/freetype2
   $ENV{KOS_PORTS}/include/zlib
+  $ENV{KOS_PORTS}/include/libzip
 )
 
 link_directories(
@@ -81,7 +82,7 @@ add_executable(${PROJECT_NAME}
   source/ttf_fonts.c
   source/util.c
   source/ps2pad.c
-  source/ps2icon.c
+#  source/ps2icon.c
 #  source/import_ps2.c
 #  source/psv_resign.c
   source/zip_util.c
