@@ -191,10 +191,10 @@ static int LoadTextures_Menu(void)
 	load_menu_texture(circle_loading_seek, png);
 	load_menu_texture(edit_shadow, png);
 
-	load_menu_texture(footer_ico_circle, png);
-	load_menu_texture(footer_ico_cross, png);
-	load_menu_texture(footer_ico_square, png);
-	load_menu_texture(footer_ico_triangle, png);
+	load_menu_texture(footer_ico_a, png);
+	load_menu_texture(footer_ico_b, png);
+	load_menu_texture(footer_ico_x, png);
+	load_menu_texture(footer_ico_y, png);
 	load_menu_texture(header_dot, png);
 	load_menu_texture(header_line, png);
 
@@ -325,10 +325,10 @@ static void registerSpecialChars(void)
 	RegisterSpecialCharacter(CHAR_TAG_TRANSFER, 0, 1.0, &menu_textures[tag_transfer_png_index]);
 
 	// Register button icons
-	RegisterSpecialCharacter(CHAR_BTN_X, 0, 1.2, &menu_textures[footer_ico_cross_png_index]);
-	RegisterSpecialCharacter(CHAR_BTN_S, 0, 1.2, &menu_textures[footer_ico_square_png_index]);
-	RegisterSpecialCharacter(CHAR_BTN_T, 0, 1.2, &menu_textures[footer_ico_triangle_png_index]);
-	RegisterSpecialCharacter(CHAR_BTN_O, 0, 1.2, &menu_textures[footer_ico_circle_png_index]);
+	RegisterSpecialCharacter(CHAR_BTN_X, 0, 1.2, &menu_textures[footer_ico_x_png_index]);
+	RegisterSpecialCharacter(CHAR_BTN_Y, 0, 1.2, &menu_textures[footer_ico_y_png_index]);
+	RegisterSpecialCharacter(CHAR_BTN_A, 0, 1.2, &menu_textures[footer_ico_a_png_index]);
+	RegisterSpecialCharacter(CHAR_BTN_B, 0, 1.2, &menu_textures[footer_ico_b_png_index]);
 
 	// Register trophy icons
 	RegisterSpecialCharacter(CHAR_TRP_GOLD, 2, 0.9f, &menu_textures[trp_gold_png_index]);
