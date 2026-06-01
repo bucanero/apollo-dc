@@ -7,7 +7,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <zlib.h>
-#include <kos.h>
 
 #include "saves.h"
 #include "utils.h"
@@ -30,7 +29,7 @@ extern const uint8_t binary_data_haiku_s3m_start;
 extern const uint8_t binary_data_haiku_s3m_size;
 
 // Audio handle
-#include "s3mplay.h"
+//#include "s3mplay.h"
 
 static void *font_ttf = NULL;
 
@@ -263,7 +262,7 @@ static int LoadTextures_Menu(void)
 static void LoadSounds(void)
 {
 //	AHX_Init();
-	play_s3m((void*) &binary_data_haiku_s3m_start, (int) &binary_data_haiku_s3m_size);
+//	play_s3m((void*) &binary_data_haiku_s3m_start, (int) &binary_data_haiku_s3m_size);
 //	AHX_SubSong(0);
 }
 
@@ -499,7 +498,7 @@ int main(int argc, char *argv[])
 	}
 	registerSpecialChars();
 	initMenuOptions();
-	LoadSounds();
+//	LoadSounds();
 
 	// Load application settings
 	load_app_settings(&apollo_config);
