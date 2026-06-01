@@ -262,7 +262,7 @@ static int LoadTextures_Menu(void)
 static void LoadSounds(void)
 {
 //	AHX_Init();
-//	play_s3m((void*) &binary_data_haiku_s3m_start, (int) &binary_data_haiku_s3m_size);
+//	AHX_LoadSongBuffer((void*) &_binary_data_inside_ahx_start, (int) &_binary_data_inside_ahx_size);
 //	AHX_SubSong(0);
 }
 
@@ -498,7 +498,7 @@ int main(int argc, char *argv[])
 	}
 	registerSpecialChars();
 	initMenuOptions();
-//	LoadSounds();
+	LoadSounds();
 
 	// Load application settings
 	load_app_settings(&apollo_config);

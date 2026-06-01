@@ -1,6 +1,6 @@
 // $Id$
 
-unsigned char s3mplay[] = {
+static const unsigned char s3mplay[] = {
 32, 0, 0, 234, 38, 0, 0, 234, 37, 0, 0, 234, 37, 0, 0, 234, 36, 0, 0, 234, 35, 0, 0, 234, 34, 0, 0, 234, 80, 128, 
 159, 229, 0, 144, 152, 229, 7, 144, 9, 226, 2, 0, 89, 227, 9, 0, 0, 26, 72, 128, 143, 226, 0, 144, 152, 229, 1, 144, 137, 226, 
 0, 144, 136, 229, 52, 128, 159, 229, 246, 144, 160, 227, 16, 144, 136, 229, 64, 144, 160, 227, 36, 144, 136, 229, 255, 255, 255, 234, 24, 128, 
@@ -381,7 +381,7 @@ volatile unsigned long *snd_dbg=(unsigned long*)0xa080ffc0;
 static void play_s3m(void *song, size_t len) {
 	spu_disable();
 	spu_memload(0x10000, song, len);
-	spu_memload(0, s3mplay, sizeof(s3mplay));
+	spu_memload(0, (void*) s3mplay, sizeof(s3mplay));
 // DEBUG
 //	printf("Load %s OK, starting ARM\n", fname);
 // DEBUG
