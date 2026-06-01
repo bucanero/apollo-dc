@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <zlib.h>
+#include <kos.h>
 
 #include "saves.h"
 #include "utils.h"
@@ -29,7 +30,7 @@ extern const uint8_t binary_data_haiku_s3m_start;
 extern const uint8_t binary_data_haiku_s3m_size;
 
 // Audio handle
-//#include "s3mplay.h"
+#include "s3mplay.h"
 
 static void *font_ttf = NULL;
 
@@ -262,7 +263,7 @@ static int LoadTextures_Menu(void)
 static void LoadSounds(void)
 {
 //	AHX_Init();
-//	AHX_LoadSongBuffer((void*) &_binary_data_inside_ahx_start, (int) &_binary_data_inside_ahx_size);
+	play_s3m((void*) &binary_data_haiku_s3m_start, (int) &binary_data_haiku_s3m_size);
 //	AHX_SubSong(0);
 }
 
