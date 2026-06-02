@@ -3,13 +3,14 @@
 #include <string.h>
 #include <time.h>
 #include <zlib.h>
-//#include <ahx_rpc.h>
+#include <dc/spu.h>
 
 #include "types.h"
 #include "menu.h"
 #include "saves.h"
 #include "common.h"
 #include "icons.h"
+#include "s3mplay.h"
 
 
 char *strcasestr(const char *, const char *);
@@ -70,17 +71,18 @@ menu_option_t menu_options[] = {
 	{ .name = NULL }
 };
 
+//Sound
+extern const uint8_t binary_data_haiku_s3m_start;
+extern const uint8_t binary_data_haiku_s3m_size;
 
 void music_callback(int sel)
 {
 	apollo_config.music = !sel;
 
-/*
 	if(apollo_config.music)
-		AHX_Play();
+		play_s3m((void*) &binary_data_haiku_s3m_start, (int) &binary_data_haiku_s3m_size);
 	else
-		AHX_Pause();
-*/
+		spu_disable();
 }
 
 void sort_callback(int sel)
