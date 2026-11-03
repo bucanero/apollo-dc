@@ -145,6 +145,10 @@ enum texture_index
 #define SCREEN_W_ADJ 						640/1920
 #define SCREEN_H_ADJ 						480/1080
 
+// The main menu columns and jars use absolute Y positions, tuned for the PS2's
+// 448-line screen: move them down so they still stand on the bottom edge
+#define MAIN_MENU_Y_OFF						(SCREEN_HEIGHT - 448)
+
 //Asset sizes
 #define	logo_png_w							179 //478 * SCREEN_W_ADJ
 #define	logo_png_h							175 //468 * SCREEN_H_ADJ
@@ -167,33 +171,33 @@ enum texture_index
 #define logo_png_x							722 * SCREEN_W_ADJ
 #define logo_png_y							45 * SCREEN_H_ADJ
 #define column_1_png_x						131 * SCREEN_W_ADJ
-#define column_1_png_y						383
+#define column_1_png_y						(383 + MAIN_MENU_Y_OFF)
 #define column_2_png_x						401 * SCREEN_W_ADJ
-#define column_2_png_y						347
+#define column_2_png_y						(347 + MAIN_MENU_Y_OFF)
 #define column_3_png_x						638 * SCREEN_W_ADJ
-#define column_3_png_y						370
+#define column_3_png_y						(370 + MAIN_MENU_Y_OFF)
 #define column_4_png_x						870 * SCREEN_W_ADJ
-#define column_4_png_y						347
+#define column_4_png_y						(347 + MAIN_MENU_Y_OFF)
 #define column_5_png_x						1094 * SCREEN_W_ADJ
-#define column_5_png_y						394
+#define column_5_png_y						(394 + MAIN_MENU_Y_OFF)
 #define column_6_png_x						1313 * SCREEN_W_ADJ
-#define column_6_png_y						346
+#define column_6_png_y						(346 + MAIN_MENU_Y_OFF)
 #define column_7_png_x						1665 * SCREEN_W_ADJ
-#define column_7_png_y						398
+#define column_7_png_y						(398 + MAIN_MENU_Y_OFF)
 #define jar_empty_png_x						159 * SCREEN_W_ADJ
-#define jar_empty_png_y						330
+#define jar_empty_png_y						(330 + MAIN_MENU_Y_OFF)
 #define jar_usb_png_x						441 * SCREEN_W_ADJ
-#define jar_usb_png_y						294
+#define jar_usb_png_y						(294 + MAIN_MENU_Y_OFF)
 #define jar_hdd_png_x						669 * SCREEN_W_ADJ
-#define jar_hdd_png_y						317
+#define jar_hdd_png_y						(317 + MAIN_MENU_Y_OFF)
 #define jar_db_png_x						898 * SCREEN_W_ADJ
-#define jar_db_png_y						294
+#define jar_db_png_y						(294 + MAIN_MENU_Y_OFF)
 #define jar_bup_png_x						1125 * SCREEN_W_ADJ
-#define jar_bup_png_y						341
+#define jar_bup_png_y						(341 + MAIN_MENU_Y_OFF)
 #define jar_opt_png_x						1353 * SCREEN_W_ADJ
-#define jar_opt_png_y						293
+#define jar_opt_png_y						(293 + MAIN_MENU_Y_OFF)
 #define jar_about_png_x						1698 * SCREEN_W_ADJ
-#define jar_about_png_y						328
+#define jar_about_png_y						(328 + MAIN_MENU_Y_OFF)
 #define cat_any_png_x						40 * SCREEN_W_ADJ
 #define cat_any_png_y						45 * SCREEN_H_ADJ
 #define app_ver_png_x						1828 * SCREEN_W_ADJ
