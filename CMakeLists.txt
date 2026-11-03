@@ -94,6 +94,7 @@ target_link_libraries(${PROJECT_NAME}
 #  ${SDL2_LIBRARIES}
   CURL::libcurl
   SDL2
+  pthread
   GL
   apollo
   polarssl

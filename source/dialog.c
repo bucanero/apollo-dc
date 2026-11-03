@@ -25,7 +25,7 @@ static void drawDialog(const char* msg, const char *dialog_opts[], int selected)
 
     SDL_SetRenderDrawColor(renderer, 0xA0, 0xA0, 0xA0, SDL_ALPHA_OPAQUE);
     SDL_RenderFillRect(renderer, &dialog_rect);
-    DrawPanel(dialog_rect.x +4, dialog_rect.y +4, dialog_rect.w -8, dialog_rect.h -8);
+    DrawTexture(&menu_textures[help_png_index], dialog_rect.x +4, dialog_rect.y +4, 0, dialog_rect.w -4, dialog_rect.h -4, 0xFFFFFF00 | 0xFF);
 
     SetFontSize(APP_FONT_SIZE_DESCRIPTION);
     SetFontColor(0xFFFFFF00 | 0xFF, 0);

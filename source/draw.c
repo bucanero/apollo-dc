@@ -163,20 +163,34 @@ static rawImage_t *imgLoadPngFromFile(const char *path)
 
 static void rawImageTexture(const rawImage_t *img, png_texture *tex)
 {
-	// convert ABGR8888 to ARGB1555
+	int count = img->width * img->height;
+	int translucent = 0;
+	SDL_Surface* surface;
 	uint16_t *ptr = (uint16_t *)img->datap;
-	for (int i = 0; i < img->width * img->height; i++)
+
+	// ARGB1555 keeps more colour but only 1 bit of alpha, which wipes out translucent
+	// overlays (panels, selection bar, scrollbar): those get ARGB4444 instead
+	for (int i = 0; i < count && !translucent; i++)
 	{
-		uint32_t pixel = img->datap[i];
-		uint8_t a = (((pixel >> 24) & 0xFF) > 127) ? 1 : 0; // 1 bit alpha
-		uint8_t b = ((pixel >> 16) & 0xFF) >> 3;
-		uint8_t g = ((pixel >> 8) & 0xFF) >> 3;
-		uint8_t r = (pixel & 0xFF) >> 3;
-		
-		ptr[i] = (a << 15) | (r << 10) | (g << 5) | b;
+		uint8_t a = (img->datap[i] >> 24) & 0xFF;
+		translucent = (a > 0x10 && a < 0xF0);
 	}
 
-	SDL_Surface* surface = SDL_CreateRGBSurfaceFrom(img->datap, img->width, img->height, 16, 2 * img->width, 0x7C00, 0x03E0, 0x001F, 0x8000);
+	// convert ABGR8888 in place (16-bit output never overtakes the 32-bit input)
+	for (int i = 0; i < count; i++)
+	{
+		uint32_t pixel = img->datap[i];
+
+		if (translucent)
+			ptr[i] = ((pixel >> 28) << 12) | (((pixel & 0xFF) >> 4) << 8) | (((pixel >> 12) & 0x0F) << 4) | ((pixel >> 20) & 0x0F);
+		else
+			ptr[i] = ((((pixel >> 24) & 0xFF) > 127) << 15) | (((pixel & 0xFF) >> 3) << 10) | (((pixel >> 11) & 0x1F) << 5) | ((pixel >> 19) & 0x1F);
+	}
+
+	if (translucent)
+		surface = SDL_CreateRGBSurfaceFrom(img->datap, img->width, img->height, 16, 2 * img->width, 0x0F00, 0x00F0, 0x000F, 0xF000);
+	else
+		surface = SDL_CreateRGBSurfaceFrom(img->datap, img->width, img->height, 16, 2 * img->width, 0x7C00, 0x03E0, 0x001F, 0x8000);
 
 	tex->width = img->width;
 	tex->height = img->height;
@@ -214,10 +228,11 @@ int LoadRawIconTexture(uint8_t* icon, int idx)
 	return 1;
 }
 
-// A 32x32 RGBA icon (VMS save icon), shown at its native size
+// A 32x32 RGBA icon (VMS save icon), scaled 2x to 64x64 with nearest neighbour so the pixel art stays crisp
 int LoadVmuIconTexture(uint8_t* rgba, int idx)
 {
 	rawImage_t raw;
+	const uint32_t* src = (const uint32_t*) rgba;
 
 	if (menu_textures[idx].texture)
 	{
@@ -228,13 +243,21 @@ int LoadVmuIconTexture(uint8_t* rgba, int idx)
 	if (!rgba)
 		return 0;
 
-	raw.width = 32;
-	raw.height = 32;
-	raw.datap = (uint32_t*) rgba;
+	raw.width = 64;
+	raw.height = 64;
+	raw.datap = malloc(raw.width * raw.height * sizeof(uint32_t));
+
+	for (int y = 0; raw.datap && y < raw.height; y++)
+		for (int x = 0; x < raw.width; x++)
+			raw.datap[y * raw.width + x] = src[(y / 2) * 32 + (x / 2)];
+
+	free(rgba);
+	if (!raw.datap)
+		return 0;
 
 	menu_textures[idx].size = 1;
 	rawImageTexture(&raw, &menu_textures[idx]);
-	free(rgba);
+	free(raw.datap);
 
 	return 1;
 }
@@ -281,17 +304,6 @@ void DrawBackground2D(u32 rgba)
 	SDL_RenderFillRect(renderer, &rect);
 }
 
-// Contrast panel behind lists and text. Drawn as a filled box: the translucent help.png
-// texture can't be shown, since textures only keep 1 bit of alpha (ARGB1555)
-void DrawPanel(int x, int y, int w, int h)
-{
-	SDL_Rect rect = {x, y, w, h};
-
-	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-	SDL_SetRenderDrawColor(renderer, 0x20, 0x20, 0x20, 0xC0);
-	SDL_RenderFillRect(renderer, &rect);
-}
-
 static void _drawListBackground(int off, int icon)
 {
 	switch (icon)
@@ -302,22 +314,22 @@ static void _drawListBackground(int off, int icon)
 		case cat_opt_png_index:
 		case cat_bup_png_index:
 		case cat_warning_png_index:
-			DrawPanel(help_png_x, help_png_y, help_png_w, help_png_h);
+			DrawTexture(&menu_textures[help_png_index], help_png_x, help_png_y, 0, help_png_w, help_png_h, 0xFFFFFF00 | 0xFF);
 			break;
 
 		case cat_sav_png_index:
-			DrawPanel(help_png_x, help_png_y, help_png_w, help_png_h);
+			DrawTexture(&menu_textures[help_png_index], help_png_x, help_png_y, 0, help_png_w, help_png_h, 0xFFFFFF00 | 0xFF);
 
 			if (menu_textures[icon_png_file_index].size)
 			{
 				int off = (menu_textures[icon_png_file_index].width == 128) ? 20 : -40;
-				DrawPanel(SCREEN_WIDTH - 162 - off, help_png_y + 2, menu_textures[icon_png_file_index].width + 4, menu_textures[icon_png_file_index].height + 4);
+				DrawTexture(&menu_textures[help_png_index], SCREEN_WIDTH - 162 - off, help_png_y + 2, 0, menu_textures[icon_png_file_index].width + 4, menu_textures[icon_png_file_index].height + 4, 0xFFFFFF00 | 0xFF);
 				DrawTexture(&menu_textures[icon_png_file_index], SCREEN_WIDTH - 160 - off, help_png_y + 4, 0, menu_textures[icon_png_file_index].width, menu_textures[icon_png_file_index].height, 0xFFFFFF00 | 0xFF);
 			}
 			break;
 
 		case cat_cheats_png_index:
-			DrawPanel(off + MENU_ICON_OFF, help_png_y, (SCREEN_WIDTH - 27) - off - MENU_ICON_OFF, help_png_h);
+			DrawTexture(&menu_textures[help_png_index], off + MENU_ICON_OFF, help_png_y, 0, (SCREEN_WIDTH - 27) - off - MENU_ICON_OFF, help_png_h, 0xFFFFFF00 | 0xFF);
 			break;
 
 		case cat_about_png_index:

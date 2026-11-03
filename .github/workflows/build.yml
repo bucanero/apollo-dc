@@ -17,7 +17,7 @@ jobs:
       - name: Install build dependencies
         run: |
           apk update
-          apk add gmp mpc1 mpfr4 make cmake git
+          apk add gmp mpc1 mpfr4 make cmake git bash curl
           git clone https://github.com/bucanero/dbglogger
           git clone --branch v1.4.0 https://github.com/bucanero/apollo-lib
           git clone --depth 1 --branch dreamcastSDL2 https://github.com/GPF/SDL
@@ -36,6 +36,11 @@ jobs:
           . /opt/toolchains/dc/kos/environ.sh
           cd /opt/toolchains/dc/kos-ports
           curl -sL https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17/archive_kos-ports.tar.gz  | tar xz -C ./
+          # the archived GLdc is outdated: build the latest one (ARGB4444 textures, for the translucent panels)
+          cd libGL
+          sed -i "s/^CMAKE_ARGS = .*/CMAKE_ARGS =        -DCMAKE_BUILD_TYPE=Release -DBUILD_SAMPLES=OFF -DBUILD_TESTS=OFF/" Makefile
+          make install clean
+          cd ..
 #          cd zlib
 #          make install
 #          cd ../polarssl
@@ -61,6 +66,9 @@ jobs:
           # the archived libkosfat was built against another KOS revision: rebuild it against this one
           make -C libkosfat clean
           make -C libkosfat
+          # replace the archived SDL2 with the latest dreamcastSDL2 branch, built against the new GLdc
+          cd $GITHUB_WORKSPACE/SDL/build-scripts
+          bash ./dreamcast.sh install
 #          cd SDL/build-scripts
 #          ./dreamcast.sh
 

@@ -462,6 +462,12 @@ int main(int argc, char *argv[])
 
 	// Initialize SDL functions
 	LOG("Initializing SDL");
+	// the Dreamcast SDL2 port defaults to a plain framebuffer (DMA) video mode with no OpenGL:
+	// ask for the GLdc-backed mode that the OpenGL renderer needs
+#ifdef SDL_HINT_DC_VIDEO_MODE
+	SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_OPENGL_VIDEO");
+#endif
+
 	if (SDL_Init(SDL_INIT_VIDEO) != SUCCESS)
 	{
 		LOG("Failed to initialize SDL: %s", SDL_GetError());
