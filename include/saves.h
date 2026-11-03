@@ -10,9 +10,14 @@
 #define APOLLO_UPDATE_URL		"https://api.github.com/repos/bucanero/apollo-psp/releases/latest"
 
 #define MAX_USB_DEVICES         5
+#define MAX_VMU_DEVICES         8           // 4 maple ports x 2 expansion slots
+#define VMU_PATH                "/vmu/"     // KOS fs_vmu mount, e.g. "/vmu/a1/"
+#define DC_TITLEID_FILE         "dctitleid.txt"
 #define MC0_PATH                "mc0:/"
 #define MC1_PATH                "mc1:/"
-#define USB_PATH                "mass:/"
+#define USB_PATH                "/sd/"      // SD card adapter (FAT)
+#define HOST_PATH               "/pc/"      // PC through dcload-ip / dcload-serial
+#define DC_SAVES_PATH           "DC/SAVEDATA/"
 #define USER_PATH_USB           "PS2/SAVEDATA/"
 
 #define PS1_SAVES_PATH_USB      "PS1/SAVEDATA/"
@@ -42,6 +47,7 @@ enum storage_enum
     STORAGE_MC1,
     STORAGE_MASS,
     STORAGE_HOST,
+    STORAGE_VMU,
 };
 
 enum save_sort_enum
@@ -97,6 +103,15 @@ enum cmd_code_enum
     CMD_URL_DOWNLOAD,
     CMD_NET_WEBSERVER,
 
+// Dreamcast VMU commands
+    CMD_COPY_SAVE_VMU,
+    CMD_COPY_SAVES_VMU,
+    CMD_COPY_ALL_SAVES_VMU,
+    CMD_EXP_VMUSAVE,
+    CMD_EXP_SAVES_VMU,
+    CMD_EXP_ALL_SAVES_VMU,
+    CMD_IMP_VMUSAVE,
+
 // SFO patches
     SFO_UNLOCK_COPY,
     SFO_CHANGE_TITLE_ID,
@@ -121,6 +136,9 @@ enum save_type_enum
     FILE_TYPE_MENU,
     FILE_TYPE_PS2,
     FILE_TYPE_VMC,
+    FILE_TYPE_VMS,
+    FILE_TYPE_DCI,
+    FILE_TYPE_VMI,
 
     // PS1 File Types
     FILE_TYPE_MCS,
@@ -213,6 +231,8 @@ int sortSaveList_Compare_TitleID(const void* A, const void* B);
 int sortCodeList_Compare(const void* A, const void* B);
 int ReadCodes(save_entry_t * save);
 int ReadVmcCodes(save_entry_t * game);
+int ReadVmuCodes(save_entry_t * save);
+uint8_t* get_vmu_save_icon(const save_entry_t* save);
 int ReadOnlineSaves(save_entry_t * game);
 int ReadBackupCodes(save_entry_t * bup);
 

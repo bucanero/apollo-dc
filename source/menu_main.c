@@ -243,6 +243,9 @@ static void SetMenu(int id)
 //				if (selected_entry->flags & SAVE_FLAG_PSV && file_exists(iconfile) != SUCCESS)
 //					http_download(selected_entry->path, "icon0.png", iconfile, 0);
 			}
+			else if (selected_entry->type == FILE_TYPE_VMS)
+				LoadVmuIconTexture(get_vmu_save_icon(selected_entry), icon_png_file_index);
+
 			else if (selected_entry->flags & SAVE_FLAG_VMC)
 			{
 //				LoadRawIconTexture(loadVmcIcon(selected_entry->dir_name, selected_entry->icon), icon_png_file_index);
@@ -417,7 +420,7 @@ static void doMainMenu(void)
 		return;
 	}
 
-	else if(dcPadGetButtonPressed(CONT_B) && show_dialog(DIALOG_TYPE_YESNO, "Exit to XMB?"))
+	else if(dcPadGetButtonPressed(CONT_B) && show_dialog(DIALOG_TYPE_YESNO, "Exit Apollo?"))
 		close_app = 1;
 	
 	Draw_MainMenu();

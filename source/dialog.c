@@ -25,7 +25,7 @@ static void drawDialog(const char* msg, const char *dialog_opts[], int selected)
 
     SDL_SetRenderDrawColor(renderer, 0xA0, 0xA0, 0xA0, SDL_ALPHA_OPAQUE);
     SDL_RenderFillRect(renderer, &dialog_rect);
-    DrawTexture(&menu_textures[help_png_index], dialog_rect.x +4, dialog_rect.y +4, 0, dialog_rect.w -4, dialog_rect.h -4, 0xFFFFFF00 | 0xFF);
+    DrawPanel(dialog_rect.x +4, dialog_rect.y +4, dialog_rect.w -8, dialog_rect.h -8);
 
     SetFontSize(APP_FONT_SIZE_DESCRIPTION);
     SetFontColor(0xFFFFFF00 | 0xFF, 0);
@@ -57,7 +57,7 @@ static void drawDialog(const char* msg, const char *dialog_opts[], int selected)
         }
     }
 
-    DrawString(0, dialog_rect.y + DIALOG_WINDOW_HEIGHT - 30, "\x10 OK   \x13 Cancel");
+    DrawString(0, dialog_rect.y + DIALOG_WINDOW_HEIGHT - 30, "\x12 OK   \x13 Cancel");
     SetFontAlign(FONT_ALIGN_LEFT);
 }
 
@@ -65,8 +65,8 @@ int show_dialog(int tdialog, const char * format, ...)
 {
     va_list opt;
     char buf[512];
-    const char* ok_opt[] = {"\x10 OK", NULL};
-    const char* yesno_opt[] = {"\x10 Yes   \x13 No", NULL};
+    const char* ok_opt[] = {"\x12 OK", NULL};
+    const char* yesno_opt[] = {"\x12 Yes   \x13 No", NULL};
 
     va_start(opt, format);
     vsnprintf(buf, sizeof(buf), format, opt);

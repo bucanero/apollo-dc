@@ -81,6 +81,9 @@ add_executable(${PROJECT_NAME}
   source/ttf_fonts.c
   source/util.c
   source/dcpad.c
+  source/dcsave.c
+  source/dcvmu.c
+  source/vmu_dev.c
 #  source/ps2icon.c
 #  source/import_ps2.c
 #  source/psv_resign.c
@@ -100,6 +103,7 @@ target_link_libraries(${PROJECT_NAME}
   bz2
 #  unrar
   zip
+  kosfat
 #  un7zip
   z
 )

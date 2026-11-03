@@ -8,6 +8,12 @@
 #include "menu.h"
 #include "common.h"
 #include "utils.h"
+#include "dcvmu.h"
+#include "dcsave.h"
+#include "vmu_dev.h"
+
+#include <ctype.h>
+#include <fat/fs_fat.h>
 
 static char host_buf[256];
 
@@ -28,7 +34,7 @@ static int _set_dest_path(char* path, int dest, const char* folder)
 		break;
 
 	case STORAGE_HOST:
-		sprintf(path, "%s%s", "host:/", folder);
+		sprintf(path, "%s%s", HOST_PATH, folder);
 		break;
 
 	default:
@@ -984,6 +990,328 @@ if(0)//		if (entry->flags & SAVE_FLAG_DC && !psp_EncryptSavedata(entry->path, fi
 		show_message("Error! File %s couldn't be imported", filename);
 }
 
+/*
+ * Dreamcast VMU saves
+ */
+
+// FAT writes are cached by KOS: flush them so the card is safe to pull out
+static void sync_storage(const char* path)
+{
+	if (strncmp(path, "/sd/", 4) == 0)
+		fs_fat_sync("/sd");
+}
+
+static int vmu_target_has(const char* vmu_path, const char* name)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+
+	return vmudev_find(vmu_path, name, raw);
+}
+
+// 1 copied, 0 failed, -1 skipped (already on the target and not overwriting)
+static int _copy_vmu_save(const char* src, const char* name, const char* dst, int overwrite)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+	uint8_t* data;
+	size_t len;
+	int ret;
+
+	if (!overwrite && vmu_target_has(dst, name))
+		return -1;
+
+	if (!vmudev_read_file(src, name, raw, &data, &len))
+		return 0;
+
+	ret = vmudev_write_file(dst, raw, data, len);
+	free(data);
+
+	return ret;
+}
+
+static void copyVmuSave(const save_entry_t* save, const char* dst)
+{
+	if (vmu_target_has(dst, save->dir_name) &&
+		!show_dialog(DIALOG_TYPE_YESNO, "%s already exists on %s\nOverwrite it?", save->dir_name, dst))
+		return;
+
+	init_loading_screen("Copying save game...");
+	int ret = _copy_vmu_save(save->path, save->dir_name, dst, 1);
+	stop_loading_screen();
+
+	if (ret > 0)
+		show_message("Save successfully copied to:\n%s%s", dst, save->dir_name);
+	else
+		show_message("Error! Couldn't copy save to %s\n(not enough free blocks?)", dst);
+}
+
+static void copyAllVmuSaves(const save_entry_t* save, const char* dst, int all)
+{
+	int done = 0, err_count = 0, skipped = 0;
+	list_node_t *node;
+	save_entry_t *item;
+	uint64_t progress = 0;
+	list_t *list = ((void**)save->dir_name)[0];
+
+	init_progress_bar("Copying saves...");
+
+	LOG("Copying saves from '%s' to '%s'...", save->path, dst);
+	for (node = list_head(list); (item = list_get(node)); node = list_next(node))
+	{
+		update_progress_bar(progress++, list_count(list), item->name);
+		if (item->type != FILE_TYPE_VMS || (!all && !(item->flags & SAVE_FLAG_SELECTED)))
+			continue;
+
+		switch (_copy_vmu_save(item->path, item->dir_name, dst, 0))
+		{
+		case 1:  done++; break;
+		case 0:  err_count++; break;
+		default: skipped++; break;
+		}
+	}
+
+	end_progress_bar();
+
+	if (skipped)
+		show_message("%d/%d Saves copied to %s\n%d skipped: already on the target VMU", done, done + err_count + skipped, dst, skipped);
+	else
+		show_message("%d/%d Saves copied to %s", done, done + err_count, dst);
+}
+
+// VMU names can hold characters a FAT file name can't
+static void vmu_safe_name(const char* name, char* out, size_t size)
+{
+	size_t i;
+
+	for (i = 0; name[i] && i < size - 1; i++)
+		out[i] = (isalnum((uint8_t)name[i]) || strchr("_-.", name[i])) ? name[i] : '_';
+	out[i] = 0;
+}
+
+// An 8-character resource name, from the VMU file name, that no .VMS in `out_dir` uses yet
+static void get_resource_name(const char* out_dir, const char* filename, char* resource)
+{
+	char path[256];
+	int n;
+
+	for (n = 0; filename[n] && n < VMI_RESOURCE_LEN; n++)
+		resource[n] = (isalnum((uint8_t)filename[n]) || filename[n] == '_' || filename[n] == '-') ? filename[n] : '_';
+	resource[n] = 0;
+
+	if (!n)
+		strcpy(resource, "VMUSAVE");
+
+	for (int i = 1; i < 100; i++)
+	{
+		snprintf(path, sizeof(path), "%s%s.VMS", out_dir, resource);
+		if (file_exists(path) != SUCCESS)
+			return;
+
+		snprintf(resource + (n > 6 ? 6 : n), 3, "%02d", i);
+	}
+}
+
+static int _export_vmu_save(const char* vmu_path, const char* name, int type, const char* out_dir)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+	uint8_t *data, *out;
+	char path[256], fname[32];
+	vmu_dirent_t ent;
+	size_t len, olen;
+	int ret = 0;
+
+	if (!vmudev_read_file(vmu_path, name, raw, &data, &len))
+		return 0;
+
+	vmu_dirent_decode(raw, &ent);
+
+	if (type == FILE_TYPE_VMI)
+	{
+		vms_header_t vms;
+		uint8_t vmi[VMI_SIZE];
+		char resource[VMI_RESOURCE_LEN + 1];
+
+		get_resource_name(out_dir, ent.filename, resource);
+		vmi_encode(&ent, resource, (vms_parse(data, len, vms_header_offset(&ent), &vms) == 0) ? vms.desc_dc : "",
+			"Apollo Save Tool (DC)", (uint32_t) len, vmi);
+
+		snprintf(path, sizeof(path), "%s%s.VMS", out_dir, resource);
+		if (write_buffer(path, data, len) == SUCCESS)
+		{
+			snprintf(path, sizeof(path), "%s%s.VMI", out_dir, resource);
+			ret = (write_buffer(path, vmi, VMI_SIZE) == SUCCESS);
+		}
+	}
+	else if (dci_encode(&ent, data, len, &out, &olen) == 0)
+	{
+		vmu_safe_name(ent.filename, fname, sizeof(fname));
+		snprintf(path, sizeof(path), "%s%s.DCI", out_dir, fname);
+		ret = (write_buffer(path, out, olen) == SUCCESS);
+		free(out);
+	}
+
+	LOG("Export '%s' -> %s: %s", name, out_dir, ret ? "OK" : "failed");
+	free(data);
+	return ret;
+}
+
+static void exportVmuSave(const save_entry_t* save, int type, int dev)
+{
+	char out_dir[256];
+
+	_set_dest_path(out_dir, dev, DC_SAVES_PATH);
+	if (mkdirs(out_dir) != SUCCESS)
+	{
+		show_message("Error! Export folder is not available:\n%s", out_dir);
+		return;
+	}
+
+	init_loading_screen("Exporting save game...");
+	int ret = _export_vmu_save(save->path, save->dir_name, type, out_dir);
+	sync_storage(out_dir);
+	stop_loading_screen();
+
+	if (ret)
+		show_message("Save successfully exported to:\n%s", out_dir);
+	else
+		show_message("Error! Couldn't export save:\n%s", save->dir_name);
+}
+
+static void exportAllVmuSaves(const save_entry_t* save, int dev, int all)
+{
+	char out_dir[256];
+	int done = 0, err_count = 0;
+	list_node_t *node;
+	save_entry_t *item;
+	uint64_t progress = 0;
+	list_t *list = ((void**)save->dir_name)[0];
+
+	_set_dest_path(out_dir, dev, DC_SAVES_PATH);
+	if (mkdirs(out_dir) != SUCCESS)
+	{
+		show_message("Error! Export folder is not available:\n%s", out_dir);
+		return;
+	}
+
+	init_progress_bar("Exporting saves...");
+
+	for (node = list_head(list); (item = list_get(node)); node = list_next(node))
+	{
+		update_progress_bar(progress++, list_count(list), item->name);
+		if (item->type != FILE_TYPE_VMS || (!all && !(item->flags & SAVE_FLAG_SELECTED)))
+			continue;
+
+		(_export_vmu_save(item->path, item->dir_name, FILE_TYPE_DCI, out_dir) ? done++ : err_count++);
+	}
+
+	sync_storage(out_dir);
+	end_progress_bar();
+
+	show_message("%d/%d Saves exported to:\n%s", done, done + err_count, out_dir);
+}
+
+/*
+ * The .VMS a .VMI describes is named after its resource field, and lives next
+ * to the .VMI. Browsers and file systems do not agree on the case of either,
+ * so try the resource name both ways, then the .VMI's own base name.
+ */
+static int read_vms(const char *vmi_path, const char *resource, uint8_t **buf, size_t *len)
+{
+	char path[256];
+	const char *base = strrchr(vmi_path, '/') ? strrchr(vmi_path, '/') + 1 : vmi_path;
+	int dirlen = (int)(base - vmi_path);
+	int stemlen = (int)strlen(base) - 4;
+
+	const char *tries[][2] = {
+		{ resource, ".VMS" }, { resource, ".vms" },
+		{ NULL, ".VMS" }, { NULL, ".vms" },
+	};
+
+	for (int i = 0; i < 4; i++)
+	{
+		if (tries[i][0])
+			snprintf(path, sizeof(path), "%.*s%s%s", dirlen, vmi_path, tries[i][0], tries[i][1]);
+		else
+			snprintf(path, sizeof(path), "%.*s%s", dirlen + stemlen, vmi_path, tries[i][1]);
+
+		if (read_buffer(path, buf, len) == 0)
+			return 1;
+	}
+
+	LOG("Error: can't find '%s.VMS' next to '%s'", resource, vmi_path);
+	return 0;
+}
+
+// Decode a .DCI, or a .VMI and its .VMS, into a directory entry and file data
+static int read_dc_save_file(const char* path, vmu_dirent_t* ent, uint8_t** data, size_t* dlen)
+{
+	uint8_t *buf;
+	size_t len;
+	int r;
+
+	if (read_buffer(path, &buf, &len) < 0)
+		return 0;
+
+	if (wildcard_match_icase(path, "*.DCI"))
+	{
+		r = dci_decode(buf, len, ent, data, dlen);
+		free(buf);
+
+		// keep the header offset only where it points inside the file
+		ent->hdroff = vms_header_offset(ent) / VMU_BLOCK_SIZE;
+		return (r == 0);
+	}
+
+	vmi_info_t info;
+	r = vmi_decode(buf, len, ent, &info);
+	free(buf);
+
+	if (r < 0 || !read_vms(path, info.resource, data, dlen))
+		return 0;
+
+	if (*dlen < info.filesize)
+	{
+		LOG("Error: the VMS holds %d bytes, the VMI expects %d", (int) *dlen, (int) info.filesize);
+		free(*data);
+		return 0;
+	}
+
+	*dlen = info.filesize;
+	return 1;
+}
+
+static void importVmuSave(const char* file, const char* vmu_path)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+	uint8_t* data;
+	size_t len;
+	vmu_dirent_t ent;
+	int ret;
+
+	if (!read_dc_save_file(file, &ent, &data, &len))
+	{
+		show_message("Error! Not a valid Dreamcast save:\n%s", file);
+		return;
+	}
+
+	if (vmu_target_has(vmu_path, ent.filename) &&
+		!show_dialog(DIALOG_TYPE_YESNO, "%s already exists on %s\nOverwrite it?", ent.filename, vmu_path))
+	{
+		free(data);
+		return;
+	}
+
+	vmu_dirent_encode(&ent, raw);
+	init_loading_screen("Importing save game...");
+	ret = vmudev_write_file(vmu_path, raw, data, len);
+	stop_loading_screen();
+	free(data);
+
+	if (ret)
+		show_message("Save successfully imported to %s%s\n\nPress \x10 on the save list to refresh it", vmu_path, ent.filename);
+	else
+		show_message("Error! Couldn't import save to %s\n(not enough free blocks?)", vmu_path);
+}
+
 static void downloadLink(const char* path)
 {
 	char url[256] = "http://";
@@ -1094,6 +1422,33 @@ void execCodeCommand(code_entry_t* code, const char* codecmd)
 		case CMD_EXP_SAVES_VMC:
 		case CMD_EXP_ALL_SAVES_VMC:
 			exportAllSavesVMC(selected_entry, codecmd[1], codecmd[0] == CMD_COPY_ALL_SAVES_VMC);
+			code->activated = 0;
+			break;
+
+		case CMD_COPY_SAVE_VMU:
+			copyVmuSave(selected_entry, codecmd + 2);
+			code->activated = 0;
+			break;
+
+		case CMD_COPY_SAVES_VMU:
+		case CMD_COPY_ALL_SAVES_VMU:
+			copyAllVmuSaves(selected_entry, codecmd + 2, codecmd[0] == CMD_COPY_ALL_SAVES_VMU);
+			code->activated = 0;
+			break;
+
+		case CMD_EXP_VMUSAVE:
+			exportVmuSave(selected_entry, code->options[0].id, codecmd[1]);
+			code->activated = 0;
+			break;
+
+		case CMD_EXP_SAVES_VMU:
+		case CMD_EXP_ALL_SAVES_VMU:
+			exportAllVmuSaves(selected_entry, codecmd[1], codecmd[0] == CMD_EXP_ALL_SAVES_VMU);
+			code->activated = 0;
+			break;
+
+		case CMD_IMP_VMUSAVE:
+			importVmuSave(code->file, selected_entry->dir_name);
 			code->activated = 0;
 			break;
 

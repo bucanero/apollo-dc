@@ -12,6 +12,10 @@
 #include "utils.h"
 #include "common.h"
 #include "dcpad.h"
+#include "vmu_dev.h"
+
+#include <dc/sd.h>
+#include <fat/fs_fat.h>
 
 //Font
 #include "libfont.h"
@@ -69,18 +73,18 @@ uint32_t* free_mem;                         // Pointer after last texture
 
 
 const char * menu_pad_help[TOTAL_MENU_IDS] = { NULL,												//Main
-								"\x10 Select    \x13 Back    \x12 Details    \x11 Refresh",			//Trophy list
-								"\x10 Select    \x13 Back    \x12 Details    \x11 Refresh",			//USB list
-								"\x10 Select    \x13 Back    \x12 Details    \x11 Refresh",			//HDD list
-								"\x10 Select    \x13 Back    \x11 Refresh",							//Online list
-								"\x10 Select    \x13 Back    \x11 Refresh",							//User backup
-								"\x10 Select    \x13 Back",											//Options
+								"\x12 Select    \x13 Back    \x11 Details    \x10 Refresh",			//Trophy list
+								"\x12 Select    \x13 Back    \x11 Details    \x10 Refresh",			//USB list
+								"\x12 Select    \x13 Back    \x11 Details    \x10 Refresh",			//HDD list
+								"\x12 Select    \x13 Back    \x10 Refresh",							//Online list
+								"\x12 Select    \x13 Back    \x10 Refresh",							//User backup
+								"\x12 Select    \x13 Back",											//Options
 								"\x13 Back",														//About
-								"\x10 Select    \x12 View Code    \x13 Back",						//Select Cheats
+								"\x12 Select    \x11 View Code    \x13 Back",						//Select Cheats
 								"\x13 Back",														//View Cheat
-								"\x10 Select    \x13 Back",											//Cheat Option
+								"\x12 Select    \x13 Back",											//Cheat Option
 								"\x13 Back",														//View Details
-								"\x10 Value Up  \x11 Value Down   \x13 Exit",						//Hex Editor
+								"\x12 Value Up  \x10 Value Down   \x13 Exit",						//Hex Editor
 								};
 
 /*
@@ -88,11 +92,11 @@ const char * menu_pad_help[TOTAL_MENU_IDS] = { NULL,												//Main
 */
 save_list_t hdd_saves = {
     .icon_id = cat_hdd_png_index,
-    .title = "MemCard Saves",
+    .title = "VMU Saves",
     .list = NULL,
     .path = "",
     .ReadList = &ReadUserList,
-    .ReadCodes = &ReadCodes,
+    .ReadCodes = &ReadVmuCodes,
     .UpdatePath = &update_hdd_path,
 };
 
@@ -275,25 +279,37 @@ void update_usb_path(char* path)
 	path[0] = 0;
 }
 
+// Pick which VMU to browse: scan the maple bus, then ask only if more than one is plugged in
 void update_hdd_path(char* path)
 {
-	int sel;
-	const char* memcard_opt[] = {"Memory Card 1", "Memory Card 2", NULL};
+	int sel, count;
+	char vmu_paths[MAX_VMU_DEVICES][VMUDEV_PATH_LEN];
+	char vmu_names[MAX_VMU_DEVICES][VMUDEV_NAME_LEN];
+	const char* vmu_opt[MAX_VMU_DEVICES + 1];
 
 	path[0] = 0;
-	if (dir_exists(MC0_PATH) == SUCCESS && dir_exists(MC1_PATH) == SUCCESS)
-	{
-		if ((sel = show_multi_dialog(memcard_opt, "Select Memory Card")) < 0)
-			return;
+	count = vmudev_list(vmu_paths, vmu_names, MAX_VMU_DEVICES);
 
-		strcpy(path, sel ? MC1_PATH : MC0_PATH);
+	if (count <= 0)
+	{
+		show_message("No VMU detected!\n\nPlease insert a Visual Memory Unit\nin a controller slot");
 		return;
 	}
-	else if (dir_exists(MC0_PATH) == SUCCESS)
-		strcpy(path, MC0_PATH);
 
-	else if (dir_exists(MC1_PATH) == SUCCESS)
-		strcpy(path, MC1_PATH);
+	if (count == 1)
+	{
+		strcpy(path, vmu_paths[0]);
+		return;
+	}
+
+	for (int i = 0; i < count; i++)
+		vmu_opt[i] = vmu_names[i];
+	vmu_opt[count] = NULL;
+
+	if ((sel = show_multi_dialog(vmu_opt, "Select VMU")) < 0)
+		return;
+
+	strcpy(path, vmu_paths[sel]);
 }
 
 void update_vmc_path(char* path)
@@ -342,32 +358,27 @@ static void terminate(void)
 //	AHX_Quit();
 }
 
+// Mount the first partition of an SD card adapter (if any) at /sd, for save exports and imports
 static int initInternal(void)
 {
-	// load common modules
-	int ret;
+	static kos_blockdev_t sd_dev;
+	uint8_t partition_type;
 
-	// Initialise
-
-/*
-	ret = SifLoadModule("rom0:XMCMAN", 0, NULL);
-	if (ret < 0) {
-		LOG("Failed to load module: MCMAN");
-		return(0);
+	if (sd_init() != 0)
+	{
+		LOG("No SD card found");
+		return 1;
 	}
 
-	ret = SifLoadModule("rom0:XMCSERV", 0, NULL);
-	if (ret < 0) {
-		LOG("Failed to load module: MCSERV");
-		return(0);
-	}
-*/
-
-	if(0) {
-		LOG("Failed to initialise memcard server!");
-		return(0);
+	if (sd_blockdev_for_partition(0, &sd_dev, &partition_type) != 0 || fs_fat_init() != 0 ||
+		fs_fat_mount("/sd", &sd_dev, FS_FAT_MOUNT_READWRITE) != 0)
+	{
+		LOG("Error mounting SD card (partition type %02X)", partition_type);
+		sd_shutdown();
+		return 1;
 	}
 
+	LOG("SD card mounted at /sd");
 	return 1;
 }
 

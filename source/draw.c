@@ -214,6 +214,31 @@ int LoadRawIconTexture(uint8_t* icon, int idx)
 	return 1;
 }
 
+// A 32x32 RGBA icon (VMS save icon), shown at its native size
+int LoadVmuIconTexture(uint8_t* rgba, int idx)
+{
+	rawImage_t raw;
+
+	if (menu_textures[idx].texture)
+	{
+		SDL_DestroyTexture(menu_textures[idx].texture);
+		menu_textures[idx].texture = NULL;
+	}
+
+	if (!rgba)
+		return 0;
+
+	raw.width = 32;
+	raw.height = 32;
+	raw.datap = (uint32_t*) rgba;
+
+	menu_textures[idx].size = 1;
+	rawImageTexture(&raw, &menu_textures[idx]);
+	free(rgba);
+
+	return 1;
+}
+
 int LoadIconTexture(const char* fname, int idx)
 {
 	uint8_t* icon;
@@ -256,6 +281,17 @@ void DrawBackground2D(u32 rgba)
 	SDL_RenderFillRect(renderer, &rect);
 }
 
+// Contrast panel behind lists and text. Drawn as a filled box: the translucent help.png
+// texture can't be shown, since textures only keep 1 bit of alpha (ARGB1555)
+void DrawPanel(int x, int y, int w, int h)
+{
+	SDL_Rect rect = {x, y, w, h};
+
+	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+	SDL_SetRenderDrawColor(renderer, 0x20, 0x20, 0x20, 0xC0);
+	SDL_RenderFillRect(renderer, &rect);
+}
+
 static void _drawListBackground(int off, int icon)
 {
 	switch (icon)
@@ -266,22 +302,22 @@ static void _drawListBackground(int off, int icon)
 		case cat_opt_png_index:
 		case cat_bup_png_index:
 		case cat_warning_png_index:
-			DrawTexture(&menu_textures[help_png_index], help_png_x, help_png_y, 0, help_png_w, help_png_h, 0xFFFFFF00 | 0xFF);
+			DrawPanel(help_png_x, help_png_y, help_png_w, help_png_h);
 			break;
 
 		case cat_sav_png_index:
-			DrawTexture(&menu_textures[help_png_index], help_png_x, help_png_y, 0, help_png_w, help_png_h, 0xFFFFFF00 | 0xFF);
+			DrawPanel(help_png_x, help_png_y, help_png_w, help_png_h);
 
 			if (menu_textures[icon_png_file_index].size)
 			{
 				int off = (menu_textures[icon_png_file_index].width == 128) ? 20 : -40;
-				DrawTexture(&menu_textures[help_png_index], SCREEN_WIDTH - 162 - off, help_png_y + 2, 0, menu_textures[icon_png_file_index].width + 4, menu_textures[icon_png_file_index].height + 4, 0xFFFFFF00 | 0xFF);
+				DrawPanel(SCREEN_WIDTH - 162 - off, help_png_y + 2, menu_textures[icon_png_file_index].width + 4, menu_textures[icon_png_file_index].height + 4);
 				DrawTexture(&menu_textures[icon_png_file_index], SCREEN_WIDTH - 160 - off, help_png_y + 4, 0, menu_textures[icon_png_file_index].width, menu_textures[icon_png_file_index].height, 0xFFFFFF00 | 0xFF);
 			}
 			break;
 
 		case cat_cheats_png_index:
-			DrawTexture(&menu_textures[help_png_index], off + MENU_ICON_OFF, help_png_y, 0, (SCREEN_WIDTH - 27) - off - MENU_ICON_OFF, help_png_h, 0xFFFFFF00 | 0xFF);
+			DrawPanel(off + MENU_ICON_OFF, help_png_y, (SCREEN_WIDTH - 27) - off - MENU_ICON_OFF, help_png_h);
 			break;
 
 		case cat_about_png_index:
