@@ -111,6 +111,7 @@ enum cmd_code_enum
     CMD_EXP_SAVES_VMU,
     CMD_EXP_ALL_SAVES_VMU,
     CMD_IMP_VMUSAVE,
+    CMD_DELETE_SAVE,
 
 // SFO patches
     SFO_UNLOCK_COPY,
@@ -128,6 +129,7 @@ enum cmd_code_enum
 #define SAVE_FLAG_LOCKED        128
 #define SAVE_FLAG_ONLINE        256
 #define SAVE_FLAG_VMC           512
+#define SAVE_FLAG_UPDATED       1024        // the list it came from must be re-read
 
 enum save_type_enum
 {
@@ -233,6 +235,9 @@ int ReadCodes(save_entry_t * save);
 int ReadVmcCodes(save_entry_t * game);
 int ReadVmuCodes(save_entry_t * save);
 uint8_t* get_vmu_save_icon(const save_entry_t* save);
+int vmu_save_read(const save_entry_t* save, uint8_t** data, size_t* len);
+int vmu_save_write(const save_entry_t* save, const uint8_t* data, size_t len);
+int vmu_save_delete(const save_entry_t* save);
 int ReadOnlineSaves(save_entry_t * game);
 int ReadBackupCodes(save_entry_t * bup);
 

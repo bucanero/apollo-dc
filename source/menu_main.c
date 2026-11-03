@@ -60,7 +60,7 @@ static void LoadFileTexture(const char* fname, int idx)
 	menu_textures[idx].size = LoadMenuTexture(fname, idx);
 }
 
-static int ReloadUserSaves(save_list_t* save_list)
+static int LoadUserSaves(save_list_t* save_list, int update_path)
 {
 	if (save_list->list)
 	{
@@ -68,7 +68,7 @@ static int ReloadUserSaves(save_list_t* save_list)
 		save_list->list = NULL;
 	}
 
-	if (save_list->UpdatePath)
+	if (update_path && save_list->UpdatePath)
 		save_list->UpdatePath(save_list->path);
 
 	init_loading_screen("Loading saves...");
@@ -88,6 +88,22 @@ static int ReloadUserSaves(save_list_t* save_list)
 	}
 
 	return list_count(save_list->list);
+}
+
+static int ReloadUserSaves(save_list_t* save_list)
+{
+	return LoadUserSaves(save_list, 1);
+}
+
+// Re-read a list from the same place (same VMU), keeping the cursor in range
+static int RefreshUserSaves(save_list_t* save_list, int menu)
+{
+	int count = LoadUserSaves(save_list, 0);
+
+	if (menu_old_sel[menu] >= count)
+		menu_old_sel[menu] = count ? count - 1 : 0;
+
+	return count;
 }
 
 static code_entry_t* LoadRawPatch(void)
@@ -134,9 +150,20 @@ static void SetMenu(int id)
 			menu_textures[icon_png_file_index].size = 0;
 			break;
 
+		case MENU_PATCHES: //Cheat Selection Menu
+			// The patch menu's own screens (code options, hex editor, details) come back
+			// to it: keep the flag until we leave to the save list.
+			// Clear the flag before reloading: reloading the list frees every entry,
+			// selected_entry included.
+			if ((selected_entry->flags & SAVE_FLAG_UPDATED) && id == MENU_HDD_SAVES)
+			{
+				selected_entry->flags ^= SAVE_FLAG_UPDATED;
+				RefreshUserSaves(&hdd_saves, MENU_HDD_SAVES);
+			}
+			break;
+
 		case MENU_SETTINGS: //Options Menu
 		case MENU_CREDITS: //About Menu
-		case MENU_PATCHES: //Cheat Selection Menu
 			break;
 
 		case MENU_SAVE_DETAILS:
@@ -549,7 +576,9 @@ static void doHexEditor(void)
 	else if (dcPadGetButtonPressed(CONT_B))
 	{
 		if (show_dialog(DIALOG_TYPE_YESNO, "Save changes to %s?", strrchr(hex_data.filepath, '/') + 1) &&
-			(write_buffer(hex_data.filepath, hex_data.data, hex_data.size) == SUCCESS))
+			((selected_entry->type == FILE_TYPE_VMS) ?
+				vmu_save_write(selected_entry, hex_data.data, hex_data.size) :
+				(write_buffer(hex_data.filepath, hex_data.data, hex_data.size) == SUCCESS)))
 		{
 //			selected_centry->options[option_index].value[menu_sel][1] = CMD_IMPORT_DATA_FILE;
 //			execCodeCommand(selected_centry, selected_centry->options[option_index].value[menu_sel]+1);
@@ -641,7 +670,9 @@ static void doCodeOptionsMenu(void)
 
 				memset(&hex_data, 0, sizeof(hex_data));
 				snprintf(hex_data.filepath, sizeof(hex_data.filepath), "%s%s", selected_entry->path, optval->name);
-				if (read_buffer(hex_data.filepath, &hex_data.data, &hex_data.size) < 0)
+				if ((selected_entry->type == FILE_TYPE_VMS) ?
+					!vmu_save_read(selected_entry, &hex_data.data, &hex_data.size) :
+					(read_buffer(hex_data.filepath, &hex_data.data, &hex_data.size) < 0))
 				{
 					show_message("Unable to load\n%s", hex_data.filepath);
 					SetMenu(last_menu_id[MENU_CODE_OPTIONS]);
@@ -704,6 +735,14 @@ static void doPatchMenu(void)
 
 		if (selected_centry->type == PATCH_COMMAND)
 			execCodeCommand(selected_centry, selected_centry->codes);
+
+		// a deleted save has nothing left to show: go back to the list, which reloads it.
+		// Leaving frees selected_entry and its codes, so return right away
+		if (selected_centry->codes[0] == CMD_DELETE_SAVE && (selected_entry->flags & SAVE_FLAG_UPDATED))
+		{
+			SetMenu(last_menu_id[MENU_PATCHES]);
+			return;
+		}
 
 		if (selected_centry->activated)
 		{

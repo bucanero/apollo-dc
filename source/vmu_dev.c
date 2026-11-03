@@ -270,3 +270,24 @@ int vmudev_write_file(const char* path, const uint8_t dirent[VMUDEV_DIRENT_SIZE]
 
 	return 1;
 }
+
+int vmudev_delete(const char* path, const char* name)
+{
+	vmu_dir_t de;
+	char fn[VMU_FILENAME_SIZE + 1];
+	maple_device_t* dev = get_device(path);
+
+	if (!dev || !find_dirent(dev, name, &de))
+		return 0;
+
+	// vmufs matches all 12 stored bytes: pass the padded name, not the trimmed one
+	raw_name(&de, fn);
+	if (vmufs_delete(dev, fn) < 0)
+	{
+		LOG("Error deleting '%s' from %s", name, path);
+		return 0;
+	}
+
+	LOG("Deleted '%s' from %s", name, path);
+	return 1;
+}

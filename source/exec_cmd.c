@@ -1279,7 +1279,7 @@ static int read_dc_save_file(const char* path, vmu_dirent_t* ent, uint8_t** data
 	return 1;
 }
 
-static void importVmuSave(const char* file, const char* vmu_path)
+static int importVmuSave(const char* file, const char* vmu_path)
 {
 	uint8_t raw[VMUDEV_DIRENT_SIZE];
 	uint8_t* data;
@@ -1290,14 +1290,14 @@ static void importVmuSave(const char* file, const char* vmu_path)
 	if (!read_dc_save_file(file, &ent, &data, &len))
 	{
 		show_message("Error! Not a valid Dreamcast save:\n%s", file);
-		return;
+		return 0;
 	}
 
 	if (vmu_target_has(vmu_path, ent.filename) &&
 		!show_dialog(DIALOG_TYPE_YESNO, "%s already exists on %s\nOverwrite it?", ent.filename, vmu_path))
 	{
 		free(data);
-		return;
+		return 0;
 	}
 
 	vmu_dirent_encode(&ent, raw);
@@ -1307,9 +1307,33 @@ static void importVmuSave(const char* file, const char* vmu_path)
 	free(data);
 
 	if (ret)
-		show_message("Save successfully imported to %s%s\n\nPress \x10 on the save list to refresh it", vmu_path, ent.filename);
+		show_message("Save successfully imported to:\n%s%s", vmu_path, ent.filename);
 	else
 		show_message("Error! Couldn't import save to %s\n(not enough free blocks?)", vmu_path);
+
+	return ret;
+}
+
+static int deleteSave(const save_entry_t* save)
+{
+	int ret = 0;
+
+	if (!show_dialog(DIALOG_TYPE_YESNO, "Delete %s\n%s from %s?\n\nThis can't be undone!", save->dir_name, save->name, save->path))
+		return 0;
+
+	if (save->type == FILE_TYPE_VMS)
+	{
+		init_loading_screen("Deleting save...");
+		ret = vmu_save_delete(save);
+		stop_loading_screen();
+	}
+
+	if (ret)
+		show_message("Save successfully deleted:\n%s", save->dir_name);
+	else
+		show_message("Error! Couldn't delete save:\n%s", save->dir_name);
+
+	return ret;
 }
 
 static void downloadLink(const char* path)
@@ -1448,8 +1472,16 @@ void execCodeCommand(code_entry_t* code, const char* codecmd)
 			break;
 
 		case CMD_IMP_VMUSAVE:
-			importVmuSave(code->file, selected_entry->dir_name);
+			if (importVmuSave(code->file, selected_entry->dir_name))
+				selected_entry->flags |= SAVE_FLAG_UPDATED;
 			code->activated = 0;
+			break;
+
+		case CMD_DELETE_SAVE:
+			if (deleteSave(selected_entry))
+				selected_entry->flags |= SAVE_FLAG_UPDATED;
+			else
+				code->activated = 0;
 			break;
 
 		case CMD_SAVE_WEBSERVER:

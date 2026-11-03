@@ -297,6 +297,57 @@ static void _addStorageCommand(list_t* codes, const char* title, const char* nam
 	list_append(codes, entry);
 }
 
+int vmu_save_read(const save_entry_t* save, uint8_t** data, size_t* len)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+
+	return vmudev_read_file(save->path, save->dir_name, raw, data, len);
+}
+
+// Write a VMU save back with new contents (same size). A VMS CRC that was valid
+// before, and that the new data leaves untouched, is updated to match.
+int vmu_save_write(const save_entry_t* save, const uint8_t* data, size_t len)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+	uint8_t *old, *buf;
+	size_t old_len, off;
+	vmu_dirent_t ent;
+	vms_header_t vms;
+	int ret, fix_crc = 0;
+
+	if (!vmudev_read_file(save->path, save->dir_name, raw, &old, &old_len))
+		return 0;
+
+	if (old_len != len || (buf = malloc(len)) == NULL)
+	{
+		LOG("Error: can't write '%s' (%d bytes, expected %d)", save->dir_name, (int) len, (int) old_len);
+		free(old);
+		return 0;
+	}
+
+	memcpy(buf, data, len);
+	vmu_dirent_decode(raw, &ent);
+	off = vms_header_offset(&ent);
+
+	if (vms_parse(old, old_len, off, &vms) == 0 && vms_calc_crc(&vms) == vms.crc &&
+		memcmp(old + off + VMS_CRC_OFFSET, buf + off + VMS_CRC_OFFSET, 2) == 0)
+		fix_crc = 1;
+	free(old);
+
+	if (fix_crc && vms_update_crc(buf, len, off) == 0)
+		LOG("Updated '%s' VMS CRC", save->dir_name);
+
+	ret = vmudev_write_file(save->path, raw, buf, len);
+	free(buf);
+
+	return ret;
+}
+
+int vmu_save_delete(const save_entry_t* save)
+{
+	return vmudev_delete(save->path, save->dir_name);
+}
+
 // The save's first icon frame as 32x32 RGBA (malloc'd), or NULL
 uint8_t* get_vmu_save_icon(const save_entry_t* save)
 {
@@ -642,6 +693,19 @@ int ReadVmuCodes(save_entry_t * save)
 	_addVmuCopyCommand(save->codes, CHAR_ICON_COPY " Copy save game to another VMU", "Copy to", CMD_COPY_SAVE_VMU, save->path);
 	_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .DCI format", "Export .DCI to", CMD_EXP_VMUSAVE, FILE_TYPE_DCI);
 	_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .VMI/.VMS format", "Export .VMI/.VMS to", CMD_EXP_VMUSAVE, FILE_TYPE_VMI);
+
+	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Tools " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+	list_append(save->codes, cmd);
+
+	// a VMU save is a single file: the only option is the save itself
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " Hex Edit save game file", CMD_CODE_NULL);
+	cmd->options_count = 1;
+	cmd->options = _initOptions(1);
+	list_append(cmd->options[0].opts, _newOption(save->dir_name, (char[]){CMD_HEX_EDIT_FILE}, 1));
+	list_append(save->codes, cmd);
+
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_WARN " Delete Save Game", CMD_DELETE_SAVE);
+	list_append(save->codes, cmd);
 
 	_addPatchCodes(save);
 	LOG("Loaded %ld codes", list_count(save->codes));

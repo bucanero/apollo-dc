@@ -10,6 +10,10 @@
 #include "saves.h"
 #include "common.h"
 #include "icons.h"
+#include "utils.h"
+#include "dcvmu.h"
+#include "dcsave.h"
+#include "vmu_dev.h"
 #include "s3mplay.h"
 
 
@@ -211,71 +215,157 @@ void log_callback(int sel)
 	show_message("Debug Logging Enabled!\n\n" USB_PATH "apollo.log");
 }
 
+/*
+ * Settings are kept on a VMU as APOLLO__OPTS, a 2-block data file:
+ *   0x000  VMS header (descriptions, 1 icon, CRC, palette)
+ *   0x080  32x32 icon
+ *   0x280  app_config_t
+ * At launch every VMU is searched; the settings are written back to the VMU they
+ * came from, or to the first VMU found.
+ */
+#define SETTINGS_FILE           "APOLLO__OPTS"
+#define SETTINGS_BLOCKS         2
+#define SETTINGS_DATA_OFF       (VMS_HEADER_SIZE + VMS_ICON_SIZE)
+
+_Static_assert(SETTINGS_DATA_OFF + sizeof(app_config_t) <= SETTINGS_BLOCKS * VMU_BLOCK_SIZE, "settings don't fit in 2 blocks");
+
+static char settings_vmu[VMUDEV_PATH_LEN];      // VMU the settings were read from / written to
+static int settings_crc = -1;                   // VMS CRC of the file on that VMU, to skip writes when nothing changed
+
+static void put_text(uint8_t* dst, const char* src, size_t len)
+{
+	memset(dst, ' ', len);
+	memcpy(dst, src, strnlen(src, len));
+}
+
+static void build_settings_file(const app_config_t* config, uint8_t* buf)
+{
+	memset(buf, 0, SETTINGS_BLOCKS * VMU_BLOCK_SIZE);
+
+	put_text(buf + 0x00, "APOLLO SETTINGS", 16);
+	put_text(buf + 0x10, "Apollo Save Tool Settings", 32);
+	memcpy(buf + 0x30, "APOLLO", 6);
+	append_le_uint16(buf + 0x40, 1);                            // icons
+	append_le_uint32(buf + 0x48, sizeof(app_config_t));         // payload
+	for (int i = 0; i < 16; i++)
+		append_le_uint16(buf + 0x60 + i * 2, apollo_vmu_icon_pal[i]);
+
+	memcpy(buf + VMS_HEADER_SIZE, apollo_vmu_icon_bmp, VMS_ICON_SIZE);
+	memcpy(buf + SETTINGS_DATA_OFF, config, sizeof(app_config_t));
+
+	vms_update_crc(buf, SETTINGS_BLOCKS * VMU_BLOCK_SIZE, 0);
+}
+
 int save_app_settings(app_config_t* config)
 {
-	char filePath[256];
+	char paths[MAX_VMU_DEVICES][VMUDEV_PATH_LEN];
+	char names[MAX_VMU_DEVICES][VMUDEV_NAME_LEN];
+	uint8_t buf[SETTINGS_BLOCKS * VMU_BLOCK_SIZE];
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+	vmu_dirent_t ent;
 
-	LOG("Apollo Save Tool v%s - Patch Engine v%s", APOLLO_VERSION, APOLLO_LIB_VERSION);
-	snprintf(filePath, sizeof(filePath), "%s%s%s", MC0_PATH, "APOLLO-99PS2/", "icon.sys");
-	if (mkdirs(filePath) != SUCCESS)
+	// the CRC covers header, icon and settings: a new icon or app version also gets written
+	build_settings_file(config, buf);
+	if (settings_vmu[0] && vmudev_present(settings_vmu) && read_le_uint16(buf + VMS_CRC_OFFSET) == settings_crc)
 	{
-		LOG("sceSaveDataMount2 ERROR");
-		return 0;
+		LOG("Settings unchanged, not saving");
+		return 1;
 	}
 
-	LOG("Saving Settings...");
-	if (file_exists(filePath) != SUCCESS)
+	// the VMU it was loaded from, if still there; else the first VMU plugged in
+	if (!settings_vmu[0] || !vmudev_present(settings_vmu))
 	{
-		uLong destLen = size_icon_sys;
-		Bytef *dest = malloc(destLen);
-
-		uncompress(dest, &destLen, zicon_sys, sizeof(zicon_sys));
-		write_buffer(filePath, dest, destLen);
-		free(dest);
-
-		snprintf(filePath, sizeof(filePath), "%s%s%s", MC0_PATH, "APOLLO-99PS2/", "icon.ico");
-		destLen = size_icon_ico;
-		dest = malloc(destLen);
-		uncompress(dest, &destLen, zicon_ico, sizeof(zicon_ico));
-		write_buffer(filePath, dest, destLen);
-		free(dest);
+		if (vmudev_list(paths, names, MAX_VMU_DEVICES) < 1)
+		{
+			LOG("No VMU found, settings not saved");
+			show_message("No VMU found!\nSettings couldn't be saved");
+			return 0;
+		}
+		strcpy(settings_vmu, paths[0]);
 	}
 
-	snprintf(filePath, sizeof(filePath), "%s%s%s", MC0_PATH, "APOLLO-99PS2/", "SETTINGS.BIN");
-	if (write_buffer(filePath, (uint8_t*) config, sizeof(app_config_t)) < 0)
+	LOG("Saving Settings to %s%s...", settings_vmu, SETTINGS_FILE);
+
+	memset(&ent, 0, sizeof(ent));
+	ent.filetype = VMU_FILE_DATA;
+	ent.copyprotect = VMU_COPY_OK;
+	strcpy(ent.filename, SETTINGS_FILE);
+	ent.filesize = SETTINGS_BLOCKS;
+	vmu_timestamp_now(&ent.timestamp);
+	vmu_dirent_encode(&ent, raw);
+
+	if (!vmudev_write_file(settings_vmu, raw, buf, sizeof(buf)))
 	{
 		LOG("Error saving settings!");
+		show_message("Error! Settings couldn't be saved to:\n%s%s\n(not enough free blocks?)", settings_vmu, SETTINGS_FILE);
 		return 0;
 	}
 
+	settings_crc = read_le_uint16(buf + VMS_CRC_OFFSET);
 	return 1;
+}
+
+static int read_settings_file(const char* path, app_config_t* config)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+	uint8_t* data;
+	size_t len;
+	vmu_dirent_t ent;
+	vms_header_t vms;
+	const app_config_t* file_cfg;
+	int ok = 0;
+
+	if (!vmudev_find(path, SETTINGS_FILE, raw) || !vmudev_read_file(path, SETTINGS_FILE, raw, &data, &len))
+		return 0;
+
+	vmu_dirent_decode(raw, &ent);
+	file_cfg = (const app_config_t*) (data + SETTINGS_DATA_OFF);
+
+	if (len < SETTINGS_DATA_OFF + sizeof(app_config_t) || vms_parse(data, len, 0, &vms) < 0 ||
+		vms.payload != sizeof(app_config_t) || vms_calc_crc(&vms) != vms.crc)
+		LOG("Invalid settings file on %s", path);
+
+	else if (strncmp(file_cfg->app_name, config->app_name, sizeof(config->app_name)) != 0)
+		LOG("Settings file on %s isn't Apollo's", path);
+
+	else
+	{
+		uint32_t user_id = config->user_id;
+
+		memcpy(config, file_cfg, sizeof(app_config_t));
+		config->user_id = user_id;
+		// the running version, not the one that saved the file
+		strncpy(config->app_ver, APOLLO_VERSION, sizeof(config->app_ver));
+		settings_crc = vms.crc;
+		ok = 1;
+	}
+
+	free(data);
+	return ok;
 }
 
 int load_app_settings(app_config_t* config)
 {
-	char filePath[256];
-	app_config_t* file_data;
-	size_t file_size;
+	char paths[MAX_VMU_DEVICES][VMUDEV_PATH_LEN];
+	char names[MAX_VMU_DEVICES][VMUDEV_NAME_LEN];
+	int count;
 
-	config->user_id = 0;
-
-	snprintf(filePath, sizeof(filePath), "%s%s%s", MC0_PATH, "APOLLO-99PS2/", "SETTINGS.BIN");
-
+	LOG("Apollo Save Tool v%s - Patch Engine v%s", APOLLO_VERSION, APOLLO_LIB_VERSION);
 	LOG("Loading Settings...");
-	if (read_buffer(filePath, (uint8_t**) &file_data, &file_size) == SUCCESS && file_size == sizeof(app_config_t))
-	{
-		file_data->user_id = config->user_id;
-		memcpy(config, file_data, file_size);
+	settings_vmu[0] = 0;
+	count = vmudev_list(paths, names, MAX_VMU_DEVICES);
 
-		LOG("Settings loaded: UserID (%08x)", config->user_id);
-		free(file_data);
-	}
-	else
+	for (int i = 0; i < count; i++)
 	{
-		LOG("Settings not found, using defaults");
-		save_app_settings(config);
-		return 0;
+		if (!read_settings_file(paths[i], config))
+			continue;
+
+		strcpy(settings_vmu, paths[i]);
+		LOG("Settings loaded from %s%s", settings_vmu, SETTINGS_FILE);
+		return 1;
 	}
 
-	return 1;
+	// nothing found: keep the defaults, and create the file the first time Settings is left
+	LOG("Settings not found, using defaults");
+	return 0;
 }
