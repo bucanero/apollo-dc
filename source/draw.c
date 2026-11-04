@@ -262,16 +262,32 @@ int LoadVmuIconTexture(uint8_t* rgba, int idx)
 	return 1;
 }
 
+// A PNG icon: 32x32 ones (Saves DB game icons) get the same 2x scaling as VMU save icons
 int LoadIconTexture(const char* fname, int idx)
 {
-	uint8_t* icon;
-	size_t len;
+	rawImage_t* img;
 
 	LOG("Loading '%s'", fname);
-	if (read_buffer(fname, &icon, &len) < 0)
+	if ((img = imgLoadPngFromFile(fname)) == NULL)
 		return 0;
 
-	return (LoadRawIconTexture(icon, idx));
+	if (img->width == 32 && img->height == 32)
+	{
+		uint8_t* rgba = (uint8_t*) img->datap;     // LoadVmuIconTexture() frees it
+
+		free(img);
+		return LoadVmuIconTexture(rgba, idx);
+	}
+
+	if (menu_textures[idx].texture)
+		SDL_DestroyTexture(menu_textures[idx].texture);
+
+	menu_textures[idx].size = 1;
+	rawImageTexture(img, &menu_textures[idx]);
+	free(img->datap);
+	free(img);
+
+	return 1;
 }
 
 int LoadMenuTexture(const char* path, int idx)
@@ -597,7 +613,7 @@ static void drawJars(uint8_t alpha)
 	drawJar(jar_hdd_png_index, jar_hdd_png_x, jar_hdd_png_y, (alpha == 0xFF ? "Saves" : ""), alpha);
 
 	//Online cheats
-	drawJar(jar_db_png_index, jar_db_png_x, jar_db_png_y, (alpha == 0xFF ? "Online DB" : ""), alpha);
+	drawJar(jar_db_png_index, jar_db_png_x, jar_db_png_y, (alpha == 0xFF ? "Saves DB" : ""), alpha);
 	
 	//User Backup
 	drawJar(jar_bup_png_index, jar_bup_png_x, jar_bup_png_y, (alpha == 0xFF ? "Tools" : ""), alpha);

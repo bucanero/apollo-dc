@@ -46,6 +46,14 @@ int vmudev_read_file(const char* path, const char* name, uint8_t dirent[VMUDEV_D
  * replacing one with the same name. Returns 1 on success. */
 int vmudev_write_file(const char* path, const uint8_t dirent[VMUDEV_DIRENT_SIZE], const uint8_t* data, size_t len);
 
+/* Raw image of the whole card: every block, below the filesystem */
+#define VMUDEV_BLOCKS           256
+#define VMUDEV_IMAGE_SIZE       (VMUDEV_BLOCKS * 512)
+
+/* Read all VMUDEV_BLOCKS blocks into `image` (VMUDEV_IMAGE_SIZE bytes). `progress`,
+ * if set, is called after each block. Returns 1 on success. */
+int vmudev_dump(const char* path, uint8_t* image, void (*progress)(int done, int total));
+
 /* Delete a file by name (trimmed). Returns 1 on success. */
 int vmudev_delete(const char* path, const char* name);
 

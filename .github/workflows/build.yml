@@ -17,12 +17,18 @@ jobs:
       - name: Install build dependencies
         run: |
           apk update
-          apk add gmp mpc1 mpfr4 make cmake git bash curl
+          apk add gmp mpc1 mpfr4 make cmake git bash curl meson ninja build-base pkgconf libisofs-dev libpng-dev
           git clone https://github.com/bucanero/dbglogger
           git clone --branch v1.4.0 https://github.com/bucanero/apollo-lib
           git clone --depth 1 --branch dreamcastSDL2 https://github.com/GPF/SDL
           git clone --depth 1 https://github.com/KallistiOS/KallistiOS.git -b master /opt/toolchains/dc/kos
           git clone --depth 1 --recursive https://github.com/KallistiOS/kos-ports /opt/toolchains/dc/kos-ports
+          git clone --depth 1 https://gitlab.com/simulant/mkdcdisc.git /opt/mkdcdisc
+          # disc contents: only the Dreamcast parts of the save and patch databases
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/bucanero/apollo-saves ../apollo-saves
+          git -C ../apollo-saves sparse-checkout set DC
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/bucanero/apollo-patches ../apollo-patches
+          git -C ../apollo-patches sparse-checkout set DC
 
       - name: build KOS
         run: |
@@ -84,11 +90,18 @@ jobs:
           cd apollo-lib
 #          make -f Makefile.DC install
 
+      - name: build mkdcdisc
+        run: |
+          cd /opt/mkdcdisc
+          meson setup builddir
+          meson compile -C builddir
+
       - name: Build project
         run: |
           . /opt/toolchains/dc/kos/environ.sh
-          kos-cmake -S . -D CMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          kos-cmake -S . -D CMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -D MKDCDISC=/opt/mkdcdisc/builddir/mkdcdisc
           make
+          make cdi
 
       - name: Compress binary
         run: |
@@ -98,5 +111,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apollo-dc-build_${{ env.sha_name }}
-          path: APOLLO-DC.elf
+          path: |
+            APOLLO-DC.elf
+            apollo-dc.cdi
           if-no-files-found: error

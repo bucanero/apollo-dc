@@ -110,9 +110,36 @@ int extract_zip(const char* zip_file, const char* dest_path)
 {
 	char path[256];
 	uint8_t* buffer;
-	struct zip* archive = zip_open(zip_file, ZIP_RDONLY | ZIP_CHECKCONS, NULL);
-	int files = zip_get_num_files(archive);
+	int err = 0;
+	struct zip* archive = zip_open(zip_file, ZIP_RDONLY | ZIP_CHECKCONS, &err);
+	int files;
 
+	if (!archive) {
+		// zip_open() seeks back from the end of the file, which the CD filesystem can't
+		// do (ZIP_ER_SEEK): read the whole file and open it from RAM instead
+		uint8_t* zbuf;
+		size_t zlen;
+		zip_error_t zerr;
+		zip_source_t* src = NULL;
+
+		LOG("Can't open ZIP file '%s' in place (libzip error %d), trying from memory", zip_file, err);
+		if (read_buffer(zip_file, &zbuf, &zlen) == 0) {
+			zip_error_init(&zerr);
+			// freep = 1: libzip frees zbuf when the source is freed / the archive is closed
+			if ((src = zip_source_buffer_create(zbuf, zlen, 1, &zerr)) == NULL)
+				free(zbuf);
+			else if ((archive = zip_open_from_source(src, ZIP_RDONLY | ZIP_CHECKCONS, &zerr)) == NULL) {
+				LOG("Error opening ZIP file from memory (libzip error %d)", zip_error_code_zip(&zerr));
+				zip_source_free(src);
+			}
+			zip_error_fini(&zerr);
+		}
+
+		if (!archive)
+			return 0;
+	}
+
+	files = zip_get_num_files(archive);
 	if (files <= 0) {
 		LOG("Empty ZIP file.");
 		zip_close(archive);

@@ -109,6 +109,19 @@ target_link_libraries(${PROJECT_NAME}
   z
 )
 
+# Self-booting disc image: the app, plus app data and the offline Saves DB (see tools/make_disc.sh)
+set(APOLLO_SAVES_DIR "${CMAKE_SOURCE_DIR}/../apollo-saves" CACHE PATH "apollo-saves checkout (uses its DC/ folder)")
+set(APOLLO_PATCHES_DIR "${CMAKE_SOURCE_DIR}/../apollo-patches" CACHE PATH "apollo-patches checkout")
+set(MKDCDISC "mkdcdisc" CACHE FILEPATH "mkdcdisc executable")
+
+add_custom_target(cdi
+  COMMAND ${CMAKE_COMMAND} -E env MKDCDISC=${MKDCDISC}
+          sh ${CMAKE_SOURCE_DIR}/tools/make_disc.sh $<TARGET_FILE:${PROJECT_NAME}> ${APOLLO_SAVES_DIR} ${APOLLO_PATCHES_DIR} apollo-dc.cdi
+  DEPENDS ${PROJECT_NAME}
+  COMMENT "Building apollo-dc.cdi"
+  VERBATIM
+)
+
 add_custom_target(createzip
   COMMAND @mkdir -p APOLLO/DATA
   COMMAND @mkdir -p APOLLO/CACHE

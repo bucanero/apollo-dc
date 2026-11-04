@@ -131,7 +131,7 @@ save_list_t vmc_saves = {
 */
 save_list_t online_saves = {
 	.icon_id = cat_db_png_index,
-	.title = "Online Database",
+	.title = "Saves Database",
     .list = NULL,
     .path = "",
     .ReadList = &ReadOnlineList,
@@ -320,8 +320,22 @@ void update_vmc_path(char* path)
 	path[0] = 0;
 }
 
+// Saves DB: the copy on the disc, else one on the SD card or the PC (dcload), else the online one
 void update_db_path(char* path)
 {
+	const char* local[] = {"/cd/", USB_PATH, HOST_PATH, NULL};
+
+	for (int i = 0; local[i]; i++)
+	{
+		snprintf(path, 128, "%s" SAVEDB_PATH "games.txt", local[i]);
+		if (file_exists(path) == SUCCESS)
+		{
+			snprintf(path, 128, "%s" SAVEDB_PATH, local[i]);
+			LOG("Saves DB found at %s", path);
+			return;
+		}
+	}
+
 	strcpy(path, apollo_config.save_db);
 }
 

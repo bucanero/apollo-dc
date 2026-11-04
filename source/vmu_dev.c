@@ -291,3 +291,32 @@ int vmudev_delete(const char* path, const char* name)
 	LOG("Deleted '%s' from %s", name, path);
 	return 1;
 }
+
+int vmudev_dump(const char* path, uint8_t* image, void (*progress)(int done, int total))
+{
+	maple_device_t* dev = get_device(path);
+
+	if (!dev)
+		return 0;
+
+	for (int blk = 0; blk < VMUDEV_BLOCKS; blk++)
+	{
+		int r = MAPLE_EFAIL;
+
+		// the maple bus can drop a frame now and then: retry a few times before giving up
+		for (int tries = 0; tries < 3 && r != MAPLE_EOK; tries++)
+			r = vmu_block_read(dev, blk, image + blk * VMU_BLOCK_SIZE);
+
+		if (r != MAPLE_EOK)
+		{
+			LOG("Error reading block %d from %s (%d)", blk, path, r);
+			return 0;
+		}
+
+		if (progress)
+			progress(blk + 1, VMUDEV_BLOCKS);
+	}
+
+	LOG("Dumped %d blocks from %s", VMUDEV_BLOCKS, path);
+	return 1;
+}

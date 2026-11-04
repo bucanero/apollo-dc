@@ -297,16 +297,21 @@ static void _addStorageCommand(list_t* codes, const char* title, const char* nam
 	list_append(codes, entry);
 }
 
-int vmu_save_read(const save_entry_t* save, uint8_t** data, size_t* len)
+int vmu_file_read(const char* vmu_path, const char* name, uint8_t** data, size_t* len)
 {
 	uint8_t raw[VMUDEV_DIRENT_SIZE];
 
-	return vmudev_read_file(save->path, save->dir_name, raw, data, len);
+	return vmudev_read_file(vmu_path, name, raw, data, len);
 }
 
-// Write a VMU save back with new contents (same size). A VMS CRC that was valid
+int vmu_save_read(const save_entry_t* save, uint8_t** data, size_t* len)
+{
+	return vmu_file_read(save->path, save->dir_name, data, len);
+}
+
+// Write a VMU file back with new contents (same size). A VMS CRC that was valid
 // before, and that the new data leaves untouched, is updated to match.
-int vmu_save_write(const save_entry_t* save, const uint8_t* data, size_t len)
+int vmu_file_write(const char* vmu_path, const char* name, const uint8_t* data, size_t len)
 {
 	uint8_t raw[VMUDEV_DIRENT_SIZE];
 	uint8_t *old, *buf;
@@ -315,12 +320,12 @@ int vmu_save_write(const save_entry_t* save, const uint8_t* data, size_t len)
 	vms_header_t vms;
 	int ret, fix_crc = 0;
 
-	if (!vmudev_read_file(save->path, save->dir_name, raw, &old, &old_len))
+	if (!vmudev_read_file(vmu_path, name, raw, &old, &old_len))
 		return 0;
 
 	if (old_len != len || (buf = malloc(len)) == NULL)
 	{
-		LOG("Error: can't write '%s' (%d bytes, expected %d)", save->dir_name, (int) len, (int) old_len);
+		LOG("Error: can't write '%s' (%d bytes, expected %d)", name, (int) len, (int) old_len);
 		free(old);
 		return 0;
 	}
@@ -335,17 +340,43 @@ int vmu_save_write(const save_entry_t* save, const uint8_t* data, size_t len)
 	free(old);
 
 	if (fix_crc && vms_update_crc(buf, len, off) == 0)
-		LOG("Updated '%s' VMS CRC", save->dir_name);
+		LOG("Updated '%s' VMS CRC", name);
 
-	ret = vmudev_write_file(save->path, raw, buf, len);
+	ret = vmudev_write_file(vmu_path, raw, buf, len);
 	free(buf);
 
 	return ret;
 }
 
+int vmu_save_write(const save_entry_t* save, const uint8_t* data, size_t len)
+{
+	return vmu_file_write(save->path, save->dir_name, data, len);
+}
+
 int vmu_save_delete(const save_entry_t* save)
 {
 	return vmudev_delete(save->path, save->dir_name);
+}
+
+// What a Saves DB entry can do: import it into any VMU plugged in, or extract the
+// .VMI/.VMS to SD/PC (DC/SAVEDATA/, where "Import Saves to VMU" finds them)
+static option_entry_t* _createDbSaveOptions(void)
+{
+	char label[128];
+	char value[2] = {CMD_DOWNLOAD_USB, STORAGE_MASS};
+	option_entry_t* options = _createVmuOptions("Import to", CMD_IMP_DB_SAVE, NULL);
+
+	if (!options)
+		options = _initOptions(1);
+
+	snprintf(label, sizeof(label), "Extract .VMI/.VMS to %s" DC_SAVES_PATH, USB_PATH);
+	list_append(options[0].opts, _newOption(label, value, 2));
+
+	value[1] = STORAGE_HOST;
+	snprintf(label, sizeof(label), "Extract .VMI/.VMS to %s" DC_SAVES_PATH, HOST_PATH);
+	list_append(options[0].opts, _newOption(label, value, 2));
+
+	return options;
 }
 
 // The save's first icon frame as 32x32 RGBA (malloc'd), or NULL
@@ -374,6 +405,27 @@ uint8_t* get_vmu_save_icon(const save_entry_t* save)
 
 static void _walk_dir_list(const char* startdir, const char* inputdir, const char* mask, list_t* list)
 {
+	// a VMU: its save files, read through the VMU layer
+	if (strncmp(inputdir, VMU_PATH, strlen(VMU_PATH)) == 0)
+	{
+		vmudev_file_t* files;
+		vmu_dirent_t ent;
+		int count;
+
+		if (!vmudev_scan(inputdir, &files, &count))
+			return;
+
+		for (int i = 0; i < count; i++)
+		{
+			vmu_dirent_decode(files[i].dirent, &ent);
+			if (wildcard_match_icase(ent.filename, mask))
+				list_append(list, strdup(ent.filename));
+		}
+
+		free(files);
+		return;
+	}
+
 	char fullname[256];	
 	struct dirent *dirp;
 	int len = strlen(startdir);
@@ -684,6 +736,9 @@ int ReadVmuCodes(save_entry_t * save)
 
 	save->codes = list_alloc();
 
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " Apply Changes", CMD_RESIGN_SAVE);
+	list_append(save->codes, cmd);
+
 	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " View Save Details", CMD_VIEW_DETAILS);
 	list_append(save->codes, cmd);
 
@@ -835,21 +890,22 @@ int ReadVmcCodes(save_entry_t * save)
 int ReadOnlineSaves(save_entry_t * game)
 {
 	code_entry_t* item;
-	option_value_t* optval;
 	char path[256];
-	snprintf(path, sizeof(path), APOLLO_LOCAL_CACHE "%s.txt", game->title_id);
-
-	if (file_exists(path) == SUCCESS && strcmp(apollo_config.save_db, ONLINE_URL) == 0)
-	{
-		struct stat stats;
-		stat(path, &stats);
-		// re-download if file is +1 day old
-		if ((stats.st_mtime + ONLINE_CACHE_TIMEOUT) < time(NULL))
-			http_download(game->path, "saves.txt", path, 0);
-	}
+	if (game->path[0] == '/')
+		snprintf(path, sizeof(path), "%ssaves.txt", game->path);
 	else
 	{
-		if (!http_download(game->path, "saves.txt", path, 0))
+		snprintf(path, sizeof(path), APOLLO_LOCAL_CACHE "%s.txt", game->title_id);
+
+		if (file_exists(path) == SUCCESS && strcmp(apollo_config.save_db, ONLINE_URL) == 0)
+		{
+			struct stat stats;
+			stat(path, &stats);
+			// re-download if file is +1 day old
+			if ((stats.st_mtime + ONLINE_CACHE_TIMEOUT) < time(NULL))
+				http_download(game->path, "saves.txt", path, 0);
+		}
+		else if (!http_download(game->path, "saves.txt", path, 0))
 			return 0;
 	}
 
@@ -873,21 +929,16 @@ int ReadOnlineSaves(save_entry_t * game)
 		}
 		*ptr++ = 0;
 
-		if (content[12] == '=')
+		// "v12719.zip=(CRAZYTAXI_DC) description": zip names vary in length
+		const char* eq = strchr(content, '=');
+		if (eq && eq > content)
 		{
-			snprintf(path, sizeof(path), CHAR_ICON_ZIP " %s", content + 13);
+			snprintf(path, sizeof(path), CHAR_ICON_ZIP " %s", eq + 1);
 			item = _createCmdCode(PATCH_COMMAND, path, CMD_CODE_NULL);
-			asprintf(&item->file, "%.12s", content);
+			asprintf(&item->file, "%.*s", (int)(eq - content), content);
 
 			item->options_count = 1;
-			item->options = _createMcOptions(1, "Download to Mass Storage", CMD_DOWNLOAD_USB);
-			optval = list_get_item(item->options[0].opts, 0);
-			memcpy(optval->name + 26, "mass:", 5);
-			optval->value[1] = STORAGE_MASS;
-
-			optval = list_get_item(item->options[0].opts, 1);
-			memcpy(optval->name + 26, "host:", 5);
-			optval->value[1] = STORAGE_HOST;
+			item->options = _createDbSaveOptions();
 			list_append(game->codes, item);
 
 			LOG("[%s%s] %s", game->path, item->file, item->name + 1);
@@ -1485,6 +1536,10 @@ list_t * ReadUserList(const char* userPath)
 	_addVmuCopyCommand(item->codes, CHAR_ICON_COPY " Copy all Saves to another VMU", "Copy to", CMD_COPY_ALL_SAVES_VMU, userPath);
 	_addStorageCommand(item->codes, CHAR_ICON_COPY " Export selected Saves to .DCI", "Export .DCI to", CMD_EXP_SAVES_VMU, FILE_TYPE_DCI);
 	_addStorageCommand(item->codes, CHAR_ICON_COPY " Export all Saves to .DCI", "Export .DCI to", CMD_EXP_ALL_SAVES_VMU, FILE_TYPE_DCI);
+
+	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Memory Card Backup " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+	list_append(item->codes, cmd);
+	_addStorageCommand(item->codes, CHAR_ICON_COPY " Dump full VMU image (.BIN)", "Dump VMU image to", CMD_EXP_VMU_IMAGE, 0);
 	list_append(list, item);
 
 	// Import .DCI / .VMI saves from each storage device; dir_name is the target VMU
@@ -1543,25 +1598,30 @@ static void _ReadOnlineListEx(const char* urlPath, uint16_t flag, list_t *list)
 	save_entry_t *item;
 	char path[256];
 
-	snprintf(path, sizeof(path), APOLLO_LOCAL_CACHE "%04X_games.txt", flag);
-
-	if (file_exists(path) == SUCCESS && strcmp(apollo_config.save_db, ONLINE_URL) == 0)
-	{
-		struct stat stats;
-		stat(path, &stats);
-		// re-download if file is +1 day old
-		if ((stats.st_mtime + ONLINE_CACHE_TIMEOUT) < time(NULL))
-			http_download(urlPath, "games.txt", path, 0);
-	}
+	// a local Saves DB (disc, SD, PC) is read in place; an online one goes through the cache
+	if (urlPath[0] == '/')
+		snprintf(path, sizeof(path), "%sgames.txt", urlPath);
 	else
 	{
-		if (!http_download(urlPath, "games.txt", path, 0))
+		snprintf(path, sizeof(path), APOLLO_LOCAL_CACHE "%04X_games.txt", flag);
+
+		if (file_exists(path) == SUCCESS && strcmp(apollo_config.save_db, ONLINE_URL) == 0)
+		{
+			struct stat stats;
+			stat(path, &stats);
+			// re-download if file is +1 day old
+			if ((stats.st_mtime + ONLINE_CACHE_TIMEOUT) < time(NULL))
+				http_download(urlPath, "games.txt", path, 0);
+		}
+		else if (!http_download(urlPath, "games.txt", path, 0))
 			return;
 	}
-	
+
 	long fsize;
 	char *data = readTextFile(path, &fsize);
-	
+	if (!data)
+		return;
+
 	char *ptr = data;
 	char *end = data + fsize;
 
@@ -1604,13 +1664,9 @@ list_t * ReadOnlineList(const char* urlPath)
 	char url[256];
 	list_t *list = list_alloc();
 
-	// PSV save-games (Zip folder)
-	snprintf(url, sizeof(url), "%s" "PS1/", urlPath);
-	_ReadOnlineListEx(url, SAVE_FLAG_PS1, list);
-
-	// PS2 save-games (Zip folder)
-	snprintf(url, sizeof(url), "%sPS2/", urlPath);
-	_ReadOnlineListEx(url, SAVE_FLAG_PS2, list);
+	// DC save-games (Zip VMI/VMS): a local DB path already points at the DC folder
+	snprintf(url, sizeof(url), (urlPath[0] == '/') ? "%s" : "%sDC/", urlPath);
+	_ReadOnlineListEx(url, SAVE_FLAG_DC, list);
 
 	if (!list_count(list))
 	{

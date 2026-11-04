@@ -17,6 +17,8 @@
 
 static char host_buf[256];
 
+static void sync_storage(const char* path);
+
 static int _set_dest_path(char* path, int dest, const char* folder)
 {
 	switch (dest)
@@ -47,15 +49,28 @@ static int _set_dest_path(char* path, int dest, const char* folder)
 
 static void downloadSave(const save_entry_t* entry, const char* file, int dst)
 {
-	char path[256];
+	char path[256], zip[256];
 
-	_set_dest_path(path, dst, PS2_SAVES_PATH_USB);
+	_set_dest_path(path, dst, (entry->flags & SAVE_FLAG_DC) ? DC_SAVES_PATH : PS2_SAVES_PATH_USB);
 	if (dst == STORAGE_MC0)
 		snprintf(path, sizeof(path), PSP_SAVES_PATH_HDD);
 
 	if (mkdirs(path) != SUCCESS)
 	{
 		show_message("Error! Export folder is not available:\n%s", path);
+		return;
+	}
+
+	// local Saves DB (disc, SD, PC): unzip straight from it
+	if (entry->path[0] == '/')
+	{
+		snprintf(zip, sizeof(zip), "%s%s", entry->path, file);
+		if (extract_zip(zip, path))
+			show_message("Save game successfully extracted to:\n%s", path);
+		else
+			show_message("Error extracting save game:\n%s", zip);
+
+		sync_storage(path);
 		return;
 	}
 
@@ -662,7 +677,7 @@ static void* ps2_host_callback(int id, int* size)
 	return host_buf;
 }
 
-static int psp_is_decrypted(list_t* list, const char* fname)
+static int list_has_name(list_t* list, const char* fname)
 {
 	list_node_t *node;
 
@@ -673,6 +688,29 @@ static int psp_is_decrypted(list_t* list, const char* fname)
 	return 0;
 }
 
+// VMU saves can't be patched in place: copy the file to RAM (once), patch that copy
+static int vmu_patch_copy(const save_entry_t* entry, const char* filename, list_t* copied, char* tmpfile, size_t size)
+{
+	uint8_t* data;
+	size_t len;
+	int ok;
+
+	snprintf(tmpfile, size, SAVEDB_TMP_PATH "%s", filename);
+	if (list_has_name(copied, filename))
+		return 1;
+
+	if (!vmu_file_read(entry->path, filename, &data, &len))
+		return 0;
+
+	ok = (write_buffer(tmpfile, data, len) == SUCCESS);
+	free(data);
+
+	if (ok)
+		list_append(copied, strdup(filename));
+
+	return ok;
+}
+
 static int apply_cheat_patches(const save_entry_t* entry)
 {
 	int ret = 1;
@@ -680,8 +718,7 @@ static int apply_cheat_patches(const save_entry_t* entry)
 	char* filename;
 	code_entry_t* code;
 	list_node_t* node;
-	list_t* decrypted_files = list_alloc();
-	uint8_t key[16];
+	list_t* vmu_files = list_alloc();
 
 	init_loading_screen("Applying changes...");
 
@@ -697,34 +734,33 @@ static int apply_cheat_patches(const save_entry_t* entry)
 		else
 			filename = code->file;
 
-		if (strchr(filename, '*'))
+		// a wildcard target ("MVLVS??2_SYS"): the VMU save that was opened, when it matches;
+		// otherwise the file picked in the code's options
+		if (strpbrk(filename, "*?"))
 		{
-			option_value_t* optval = list_get_item(code->options[0].opts, code->options[0].sel);
-			filename = optval->name;
+			if (entry->type == FILE_TYPE_VMS && wildcard_match_icase(entry->dir_name, filename))
+				filename = entry->dir_name;
+			else if (code->options)
+			{
+				option_value_t* optval = list_get_item(code->options[0].opts, code->options[0].sel);
+				filename = optval->name;
+			}
 		}
 
 		if (strstr(code->file, "~extracted\\"))
 			snprintf(tmpfile, sizeof(tmpfile), "%s[%s]%s", APOLLO_LOCAL_CACHE, entry->title_id, filename);
-		else
-		{
-			snprintf(tmpfile, sizeof(tmpfile), "%s%s", entry->path, filename);
-			LOG("Decrypting file '%s'", tmpfile);
 
-			if (entry->flags & SAVE_FLAG_DC && !psp_is_decrypted(decrypted_files, filename))
+		else if (entry->type == FILE_TYPE_VMS)
+		{
+			if (!vmu_patch_copy(entry, filename, vmu_files, tmpfile, sizeof(tmpfile)))
 			{
-if(0)//				if (get_psp_save_key(entry, key) && psp_DecryptSavedata(entry->path, tmpfile, key))
-				{
-					LOG("Decrypted PSP file '%s'", filename);
-					list_append(decrypted_files, strdup(filename));
-				}
-				else
-				{
-					LOG("Error: failed to decrypt (%s)", filename);
-					ret = 0;
-					continue;
-				}
+				LOG("Error: can't read '%s' from %s", filename, entry->path);
+				ret = 0;
+				continue;
 			}
 		}
+		else
+			snprintf(tmpfile, sizeof(tmpfile), "%s%s", entry->path, filename);
 
 		if (!apply_cheat_patch_code(tmpfile, entry->title_id, code, &ps2_host_callback))
 		{
@@ -735,19 +771,28 @@ if(0)//				if (get_psp_save_key(entry, key) && psp_DecryptSavedata(entry->path, 
 		code->activated = 0;
 	}
 
-	for (node = list_head(decrypted_files); (filename = list_get(node)); node = list_next(node))
+	// write the patched copies back to the VMU (vmu_file_write keeps a valid VMS CRC valid)
+	for (node = list_head(vmu_files); (filename = list_get(node)); node = list_next(node))
 	{
-		LOG("Encrypting '%s'...", filename);
-if(0)//		if (!get_psp_save_key(entry, key) || !psp_EncryptSavedata(entry->path, filename, key))
+		uint8_t* data = NULL;
+		size_t len;
+
+		snprintf(tmpfile, sizeof(tmpfile), SAVEDB_TMP_PATH "%s", filename);
+		LOG("Writing '%s' back to %s...", filename, entry->path);
+
+		if (read_buffer(tmpfile, &data, &len) != 0 || !vmu_file_write(entry->path, filename, data, len))
 		{
-			LOG("Error: failed to encrypt (%s)", filename);
+			LOG("Error: failed to write back (%s)", filename);
 			ret = 0;
 		}
 
+		if (data)
+			free(data);
+		unlink(tmpfile);
 		free(filename);
 	}
 
-	list_free(decrypted_files);
+	list_free(vmu_files);
 	free_patch_var_list();
 	stop_loading_screen();
 
@@ -761,8 +806,8 @@ static void resignSave(save_entry_t* entry)
     LOG("Applying cheats to '%s'...", entry->name);
     if (!apply_cheat_patches(entry))
         show_message("Error! Cheat codes couldn't be applied");
-
-    show_message("Save %s successfully modified!", entry->title_id);
+    else
+        show_message("Save %s successfully modified!", entry->title_id);
 }
 
 static void exportAllSaves(const save_entry_t* save, int dev, int all)
@@ -1314,6 +1359,134 @@ static int importVmuSave(const char* file, const char* vmu_path)
 	return ret;
 }
 
+static void dump_progress(int done, int total)
+{
+	update_progress_bar(done, total, "Reading VMU blocks...");
+}
+
+// Raw 128 KB image of the whole VMU, every block below the filesystem: a full backup
+static void dumpVmuImage(const save_entry_t* save, int dev)
+{
+	char out_dir[256], path[256];
+	const char* id = save->path + strlen(VMU_PATH);     // "a1/"
+	vmu_card_t* card;
+	uint8_t* image;
+	struct tm t;
+	time_t now = time(NULL);
+	int ok, fmt;
+
+	_set_dest_path(out_dir, dev, DC_VMU_PATH);
+	if (mkdirs(out_dir) != SUCCESS)
+	{
+		show_message("Error! Export folder is not available:\n%s", out_dir);
+		return;
+	}
+
+	if ((image = malloc(VMUDEV_IMAGE_SIZE)) == NULL || (card = malloc(sizeof(vmu_card_t))) == NULL)
+	{
+		free(image);
+		show_message("Error! Not enough memory to dump the VMU");
+		return;
+	}
+
+	init_progress_bar("Dumping VMU image...");
+	ok = vmudev_dump(save->path, image, &dump_progress);
+	end_progress_bar();
+
+	if (!ok)
+	{
+		show_message("Error! Couldn't read VMU %c%c\n(was it removed?)", toupper(id[0]), id[1]);
+		goto end;
+	}
+
+	// sanity check: the root block should describe a formatted card
+	fmt = vmu_load(card, image, VMUDEV_IMAGE_SIZE);
+	if (fmt != VMU_OK)
+		LOG("Warning: VMU image root block check failed (%s)", vmu_strerror(fmt));
+
+	localtime_r(&now, &t);
+	snprintf(path, sizeof(path), "%sVMU_%c%c_%04d%02d%02d_%02d%02d%02d.BIN", out_dir, toupper(id[0]), id[1],
+		t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+
+	init_loading_screen("Saving VMU image...");
+	ok = (write_buffer(path, image, VMUDEV_IMAGE_SIZE) == SUCCESS);
+	sync_storage(path);
+	stop_loading_screen();
+
+	if (!ok)
+		show_message("Error! Couldn't write the VMU image:\n%s", path);
+	else if (fmt != VMU_OK)
+		show_message("VMU image saved, but the card doesn't look formatted:\n%s", path);
+	else
+		show_message("VMU image successfully saved to:\n%s", path);
+
+end:
+	free(card);
+	free(image);
+}
+
+// Remove the files a DB save was unzipped to (only save files: the RAM disk is shared)
+static void clean_savedb_tmp(void)
+{
+	char path[256];
+	struct dirent* e;
+	DIR* d = opendir(SAVEDB_TMP_PATH);
+
+	while (d && (e = readdir(d)) != NULL)
+	{
+		if (!wildcard_match_icase(e->d_name, "*.VMI") && !wildcard_match_icase(e->d_name, "*.VMS") &&
+			!wildcard_match_icase(e->d_name, "*.DCI"))
+			continue;
+
+		snprintf(path, sizeof(path), SAVEDB_TMP_PATH "%s", e->d_name);
+		unlink(path);
+	}
+
+	if (d)
+		closedir(d);
+}
+
+// Saves DB entry -> VMU: unzip to RAM, then import the .VMI (+ .VMS) or .DCI inside
+static int importDbSave(const save_entry_t* game, const char* zip_name, const char* vmu_path)
+{
+	char zip[256], save[256] = "";
+	struct dirent* e;
+	DIR* d;
+	int ret = 0;
+
+	snprintf(zip, sizeof(zip), "%s%s", game->path, zip_name);
+	if (game->path[0] != '/')
+	{
+		show_message("Error! Only a local Saves DB (disc, SD, PC) can be imported from");
+		return 0;
+	}
+
+	clean_savedb_tmp();
+	mkdirs(SAVEDB_TMP_PATH);
+
+	if (!extract_zip(zip, SAVEDB_TMP_PATH))
+	{
+		show_message("Error extracting save game:\n%s", zip);
+		return 0;
+	}
+
+	if ((d = opendir(SAVEDB_TMP_PATH)) != NULL)
+	{
+		while ((e = readdir(d)) != NULL && !save[0])
+			if (wildcard_match_icase(e->d_name, "*.VMI") || wildcard_match_icase(e->d_name, "*.DCI"))
+				snprintf(save, sizeof(save), SAVEDB_TMP_PATH "%s", e->d_name);
+		closedir(d);
+	}
+
+	if (save[0])
+		ret = importVmuSave(save, vmu_path);
+	else
+		show_message("Error! No .VMI or .DCI save found in:\n%s", zip);
+
+	clean_savedb_tmp();
+	return ret;
+}
+
 static int deleteSave(const save_entry_t* save)
 {
 	int ret = 0;
@@ -1474,6 +1647,16 @@ void execCodeCommand(code_entry_t* code, const char* codecmd)
 		case CMD_IMP_VMUSAVE:
 			if (importVmuSave(code->file, selected_entry->dir_name))
 				selected_entry->flags |= SAVE_FLAG_UPDATED;
+			code->activated = 0;
+			break;
+
+		case CMD_IMP_DB_SAVE:
+			importDbSave(selected_entry, code->file, codecmd + 2);
+			code->activated = 0;
+			break;
+
+		case CMD_EXP_VMU_IMAGE:
+			dumpVmuImage(selected_entry, codecmd[1]);
 			code->activated = 0;
 			break;
 

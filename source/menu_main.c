@@ -260,7 +260,10 @@ static void SetMenu(int id)
 			char iconfile[256] = {0};
 
 			menu_textures[icon_png_file_index].size = 0;
-			if (selected_entry->flags & SAVE_FLAG_ONLINE)
+			if ((selected_entry->flags & SAVE_FLAG_ONLINE) && selected_entry->path[0] == '/')
+				snprintf(iconfile, sizeof(iconfile), "%sicon0.png", selected_entry->path);
+
+			else if (selected_entry->flags & SAVE_FLAG_ONLINE)
 			{
 				snprintf(iconfile, sizeof(iconfile), APOLLO_LOCAL_CACHE "%s.PNG", selected_entry->title_id);
 

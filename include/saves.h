@@ -5,7 +5,7 @@
 #define APOLLO_PATH				"ms0:/APOLLO/"
 #define APOLLO_APP_PATH			"mass:/APOLLO/"
 #define APOLLO_USER_PATH		USB_PATH "PS2/EXPORT/"
-#define APOLLO_DATA_PATH		APOLLO_APP_PATH "DATA/"
+#define APOLLO_DATA_PATH		"/cd/APOLLO/DATA/"      // read-only app data on the disc: dctitleid.txt, *.savepatch
 #define APOLLO_LOCAL_CACHE		APOLLO_APP_PATH "CACHE/"
 #define APOLLO_UPDATE_URL		"https://api.github.com/repos/bucanero/apollo-psp/releases/latest"
 
@@ -18,6 +18,7 @@
 #define USB_PATH                "/sd/"      // SD card adapter (FAT)
 #define HOST_PATH               "/pc/"      // PC through dcload-ip / dcload-serial
 #define DC_SAVES_PATH           "DC/SAVEDATA/"
+#define DC_VMU_PATH             "DC/VMU/"   // full VMU images, as apollo-ps3 reads them
 #define USER_PATH_USB           "PS2/SAVEDATA/"
 
 #define PS1_SAVES_PATH_USB      "PS1/SAVEDATA/"
@@ -36,6 +37,8 @@
 #define IMP_OPLVMC_PATH_USB     "VMC/"
 
 #define ONLINE_URL              "https://bucanero.github.io/apollo-saves/"
+#define SAVEDB_PATH             "SAVEDB/DC/"        // offline Saves DB on the disc (or /sd/, /pc/)
+#define SAVEDB_TMP_PATH         "/ram/"             // where a DB save is unzipped before importing (no subfolders: the RAM disk has no mkdir)
 #define ONLINE_PATCH_URL        "https://bucanero.github.io/apollo-patches/PS2/"
 #define ONLINE_CACHE_TIMEOUT    24*3600     // 1-day local cache
 
@@ -112,6 +115,8 @@ enum cmd_code_enum
     CMD_EXP_ALL_SAVES_VMU,
     CMD_IMP_VMUSAVE,
     CMD_DELETE_SAVE,
+    CMD_EXP_VMU_IMAGE,
+    CMD_IMP_DB_SAVE,
 
 // SFO patches
     SFO_UNLOCK_COPY,
@@ -237,6 +242,8 @@ int ReadVmuCodes(save_entry_t * save);
 uint8_t* get_vmu_save_icon(const save_entry_t* save);
 int vmu_save_read(const save_entry_t* save, uint8_t** data, size_t* len);
 int vmu_save_write(const save_entry_t* save, const uint8_t* data, size_t len);
+int vmu_file_read(const char* vmu_path, const char* name, uint8_t** data, size_t* len);
+int vmu_file_write(const char* vmu_path, const char* name, const uint8_t* data, size_t len);
 int vmu_save_delete(const save_entry_t* save);
 int ReadOnlineSaves(save_entry_t * game);
 int ReadBackupCodes(save_entry_t * bup);
