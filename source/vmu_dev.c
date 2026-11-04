@@ -257,8 +257,17 @@ int vmudev_write_file(const char* path, const uint8_t dirent[VMUDEV_DIRENT_SIZE]
 	if (de.copyprotect)
 		flags |= VMUFS_NOCOPY;
 
-	// vmufs_write takes a non-const buffer, but only reads it
-	r = vmufs_write(dev, fn, (void*) data, (int) len, flags);
+	if (len == 0 || len > VMUDEV_IMAGE_SIZE)
+		return 0;
+
+	size_t write_len = (len + VMU_BLOCK_SIZE - 1) / VMU_BLOCK_SIZE * VMU_BLOCK_SIZE;
+	uint8_t* write_data = calloc(1, write_len);
+	if (!write_data)
+		return 0;
+
+	memcpy(write_data, data, len);
+	r = vmufs_write(dev, fn, write_data, (int) write_len, flags);
+	free(write_data);
 	if (r < 0)
 	{
 		LOG("Error writing '%s' to %s (%d)", fn, path, r);
