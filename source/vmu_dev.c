@@ -102,7 +102,7 @@ int vmudev_scan(const char* path, vmudev_file_t** files, int* count)
 		return 0;
 	}
 
-	fat_count = vmufs_fat_blocks(&root) * VMU_BLOCK_SIZE / sizeof(uint16_t);
+	fat_count = vmufs_fat_blocks(&root) / sizeof(uint16_t);
 	fat = malloc(fat_count * sizeof(uint16_t));
 
 	if (!fat || vmufs_fat_read(dev, &root, fat) < 0 || vmufs_readdir(dev, &dir, &dir_count) < 0)
