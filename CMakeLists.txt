@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   if(NOT DEFINED ENV{KOS_BASE})
@@ -8,7 +8,6 @@ endif()
 
 project(APOLLO-DC)
 
-#find_package(SDL2 REQUIRED)
 find_package(CURL REQUIRED)
 
 option(APOLLO_ENABLE_LOGGING "enables debug logging over UDP multicast" OFF)
@@ -40,8 +39,6 @@ FUNCTION(ADD_RESOURCES out_var)
         GET_FILENAME_COMPONENT(out_dir ${out_f} DIRECTORY)
         ADD_CUSTOM_COMMAND(OUTPUT ${out_f}
                 COMMAND ${CMAKE_COMMAND} -E make_directory ${out_dir}
-#                COMMAND echo "COMMAND ${CMAKE_LINKER} -r -b binary -o ${out_f} ${in_f}"
-#                COMMAND $ENV{KOS_LD} -r -b binary -o ${out_f} ${in_f}
                 COMMAND $ENV{KOS_BASE}/utils/bin2o/bin2o ${in_f} bsym${in_f} ${out_f}
                 DEPENDS ${in_f}
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -57,7 +54,6 @@ file(GLOB res_files RELATIVE
   ${CMAKE_SOURCE_DIR}
   data/*.png
   data/*.s3m
-#  data/*.ahx
 )
 add_resources(apollo_res ${res_files})
 
@@ -68,7 +64,6 @@ add_executable(${PROJECT_NAME}
   source/dialog.c
   source/draw.c
   source/exec_cmd.c
-##  source/http.c
   source/libfont.c
   source/main.c
   source/menu_hex.c
@@ -85,14 +80,10 @@ add_executable(${PROJECT_NAME}
   source/dcsave.c
   source/dcvmu.c
   source/vmu_dev.c
-#  source/ps2icon.c
-#  source/import_ps2.c
-#  source/psv_resign.c
   source/zip_util.c
 )
 
 target_link_libraries(${PROJECT_NAME}
-#  ${SDL2_LIBRARIES}
   CURL::libcurl
   SDL2
   pthread
@@ -103,10 +94,8 @@ target_link_libraries(${PROJECT_NAME}
   freetype
   png
   bz2
-#  unrar
   zip
   kosfat
-#  un7zip
   z
 )
 
@@ -121,33 +110,4 @@ add_custom_target(cdi
   DEPENDS ${PROJECT_NAME}
   COMMENT "Building apollo-dc.cdi"
   VERBATIM
-)
-
-add_custom_target(createzip
-  COMMAND @mkdir -p APOLLO/DATA
-  COMMAND @mkdir -p APOLLO/CACHE
-  COMMAND @echo "Downloading appdata.zip ..."
-  COMMAND @rm -fr apollo-psp.zip
-  COMMAND @curl -L "https://bucanero.github.io/apollo-patches/PSP/apollo-psp-update.zip" > APOLLO/CACHE/appdata.zip
-  COMMAND @cp EBOOT.PBP APOLLO/
-  COMMAND @cp ${CMAKE_SOURCE_DIR}/data/fonts/* APOLLO/DATA/
-  COMMAND @zip -r apollo-psp.zip APOLLO/
-)
-
-add_custom_target(packelf
-  COMMAND @echo "Packing release ELF ..."
-  COMMAND @${PS2DEV}/bin/ps2-packer-lite ${PROJECT_NAME} APOLLO.ELF
-  DEPENDS ${PROJECT_NAME}
-)
-
-add_custom_target(release
-  COMMAND @echo "Packing release ELF ..."
-  COMMAND @${PS2DEV}/bin/ps2-packer-lite ${PROJECT_NAME} APOLLO.ELF
-  COMMAND @echo "Copying to /APOLLO-99PS2/ ..."
-  COMMAND @mkdir -p APOLLO-99PS2/
-  COMMAND @cp -v APOLLO.ELF APOLLO-99PS2/APOLLO.ELF
-  COMMAND @cp -v ${CMAKE_SOURCE_DIR}/icon.sys APOLLO-99PS2/icon.sys
-  COMMAND @cp -v ${CMAKE_SOURCE_DIR}/icon.ico APOLLO-99PS2/icon.ico
-  COMMAND @zip -r apollo-ps2.zip APOLLO-99PS2/
-  DEPENDS ${PROJECT_NAME}
 )

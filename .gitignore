@@ -53,3 +53,6 @@ dkms.conf
 
 # Dreamcast disc images
 *.cdi
+
+# local build output
+/build/

@@ -6,7 +6,7 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  psp:
+  dc:
     name: Dreamcast Build (KOS)
     runs-on: ubuntu-latest
     container: pcercuei/dreamcast-toolchain:15.2.1-dev
@@ -41,7 +41,8 @@ jobs:
         run: |
           . /opt/toolchains/dc/kos/environ.sh
           cd /opt/toolchains/dc/kos-ports
-          curl -sL https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17/archive_kos-ports.tar.gz  | tar xz -C ./
+          # prebuilt ports: zlib, libpng, libzip, freetype, curl, polarssl, apollo-lib, dbglogger, ...
+          curl -sL https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17/archive_kos-ports.tar.gz | tar xz -C ./
           # the archived GLdc is outdated: build the latest one (ARGB4444 textures, for the translucent panels)
           cd libGL
           sed -i "s/^CMAKE_ARGS = .*/CMAKE_ARGS =        -DCMAKE_BUILD_TYPE=Release -DBUILD_SAMPLES=OFF -DBUILD_TESTS=OFF/" Makefile
@@ -75,8 +76,6 @@ jobs:
           # replace the archived SDL2 with the latest dreamcastSDL2 branch, built against the new GLdc
           cd $GITHUB_WORKSPACE/SDL/build-scripts
           bash ./dreamcast.sh install
-#          cd SDL/build-scripts
-#          ./dreamcast.sh
 
       - name: build dbglogger
         run: |
@@ -103,7 +102,7 @@ jobs:
           make
           make cdi
 
-      - name: Compress binary
+      - name: Artifact name
         run: |
           echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
 
