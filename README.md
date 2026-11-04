@@ -9,7 +9,7 @@
 
 This homebrew app allows you to manage, back up, patch, and import save-game files on your Dreamcast VMUs (Visual Memory Units), directly on the console.
 
-![image](./docs/Dreamcast-logo.png)
+![image](./docs/screenshot-main.png)
 
 **Comments, ideas, suggestions?** You can [contact me](https://github.com/bucanero/) on [Twitter](https://twitter.com/dparrino) and on [my website](http://www.bucanero.com.ar/).
 
