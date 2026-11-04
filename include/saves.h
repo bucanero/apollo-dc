@@ -167,7 +167,7 @@ enum char_flag_enum
 {
     CHAR_TAG_NULL,
     CHAR_TAG_PS1,
-    CHAR_TAG_PS2,
+    CHAR_TAG_UNUSED0,       // was PS2: the codes are positional, keep the slot
     CHAR_TAG_UNUSED1,
     CHAR_TAG_DC,
     CHAR_TAG_UNUSED2,

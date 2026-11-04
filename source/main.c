@@ -245,7 +245,6 @@ static int LoadTextures_Menu(void)
 	load_menu_texture(tag_own, png);
 	load_menu_texture(tag_pack, png);
 	load_menu_texture(tag_ps1, png);
-	load_menu_texture(tag_ps2, png);
 	load_menu_texture(tag_dc, png);
 	load_menu_texture(tag_warning, png);
 	load_menu_texture(tag_zip, png);
@@ -343,7 +342,6 @@ static void registerSpecialChars(void)
 {
 	// Register save tags
 	RegisterSpecialCharacter(CHAR_TAG_PS1, 0, 1.5, &menu_textures[tag_ps1_png_index]);
-	RegisterSpecialCharacter(CHAR_TAG_PS2, 0, 1.5, &menu_textures[tag_ps2_png_index]);
 	RegisterSpecialCharacter(CHAR_TAG_DC, 0, 1.5, &menu_textures[tag_dc_png_index]);
 	RegisterSpecialCharacter(CHAR_TAG_PACK, 0, 0.8, &menu_textures[tag_pack_png_index]);
 	RegisterSpecialCharacter(CHAR_TAG_LOCKED, 0, 1.3, &menu_textures[tag_lock_png_index]);

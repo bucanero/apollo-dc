@@ -362,7 +362,6 @@ void DrawGameList(int selIndex, list_t * games, u8 alpha)
 
 			tmp[0] = ' ';
 			tmp[1] = ' ';
-			if (item->flags & SAVE_FLAG_PS2) tmp[0] = CHAR_TAG_PS2;
 			if (item->flags & SAVE_FLAG_DC) tmp[0] = CHAR_TAG_DC;
 			if (item->flags & SAVE_FLAG_PS1) tmp[0] = CHAR_TAG_PS1;
 			if (item->flags & SAVE_FLAG_LOCKED) tmp[1] = CHAR_TAG_LOCKED;
