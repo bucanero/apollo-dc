@@ -109,20 +109,20 @@ save_list_t usb_saves = {
     .list = NULL,
     .path = "",
     .ReadList = &ReadUsbList,
-    .ReadCodes = &ReadCodes,
+    .ReadCodes = &ReadExtCodes,
     .UpdatePath = &update_usb_path,
 };
 
 /*
-* Trophy list
+* VMU image (opened from External Saves): listed and managed like a VMU
 */
 save_list_t vmc_saves = {
 	.icon_id = cat_warning_png_index,
-	.title = "Virtual MemCard",
+	.title = "VMU Image",
     .list = NULL,
     .path = "",
-    .ReadList = &ReadVmcList,
-    .ReadCodes = &ReadVmcCodes,
+    .ReadList = &ReadUserList,
+    .ReadCodes = &ReadVmuCodes,
     .UpdatePath = &update_vmc_path,
 };
 
@@ -269,11 +269,17 @@ static void LoadSounds(void)
 //	AHX_SubSong(0);
 }
 
+// External Saves: the SD card and the PC (dcload) are both scanned; path is set when either is there
 void update_usb_path(char* path)
 {
-	sprintf(path, "%s", menu_options[3].options[apollo_config.storage]);
-	if (dir_exists(path) == SUCCESS)
-		return;
+	const char* roots[] = {USB_PATH, HOST_PATH, NULL};
+
+	for (int i = 0; roots[i]; i++)
+		if (dir_exists(roots[i]) == SUCCESS)
+		{
+			strcpy(path, roots[i]);
+			return;
+		}
 
 	path[0] = 0;
 }

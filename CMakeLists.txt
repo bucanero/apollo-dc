@@ -80,6 +80,7 @@ add_executable(${PROJECT_NAME}
   source/dcsave.c
   source/dcvmu.c
   source/vmu_dev.c
+  source/vmu_card.c
   source/zip_util.c
 )
 

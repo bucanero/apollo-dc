@@ -70,57 +70,26 @@ enum cmd_code_enum
     CMD_DOWNLOAD_HDD,
     CMD_COPY_SAVE_USB,
     CMD_COPY_SAVE_HDD,
-    CMD_COPY_SAVE_VMC,
-    CMD_EXPORT_ZIP_USB,
     CMD_VIEW_DETAILS,
     CMD_VIEW_RAW_PATCH,
-    CMD_RESIGN_VMP,
-    CMD_CONVERT_TO_PSV,
     CMD_HEX_EDIT_FILE,
-    CMD_EXPORT_DATA_FILE,
-    CMD_IMPORT_DATA_FILE,
 
 // Bulk commands
-    CMD_EXPORT_SAVES,
-    CMD_EXPORT_ALL_SAVES,
-    CMD_EXP_SAVES_VMC,
-    CMD_EXP_ALL_SAVES_VMC,
     CMD_COPY_SAVES_USB,
     CMD_COPY_ALL_SAVES_USB,
     CMD_COPY_SAVES_HDD,
     CMD_COPY_ALL_SAVES_HDD,
-    CMD_COPY_SAVES_VMC,
-    CMD_COPY_ALL_SAVES_VMC,
-    CMD_DUMP_FINGERPRINTS,
     CMD_SAVE_WEBSERVER,
-
-// Export commands
-    CMD_EXP_VMP2MCR,
-    CMD_EXP_PS2SAVE,
-    CMD_EXP_VMCSAVE,
 
 // Import commands
     CMD_IMP_SAVE_MC,
-    CMD_IMP_VMCSAVE,
     CMD_EXTRACT_ARCHIVE,
     CMD_URL_DOWNLOAD,
     CMD_NET_WEBSERVER,
 
 // Dreamcast VMU commands
-    CMD_COPY_SAVE_VMU,
-    CMD_COPY_SAVES_VMU,
-    CMD_COPY_ALL_SAVES_VMU,
-    CMD_EXP_VMUSAVE,
-    CMD_EXP_SAVES_VMU,
-    CMD_EXP_ALL_SAVES_VMU,
-    CMD_IMP_VMUSAVE,
     CMD_DELETE_SAVE,
     CMD_EXP_VMU_IMAGE,
-    CMD_IMP_DB_SAVE,
-
-// SFO patches
-    SFO_UNLOCK_COPY,
-    SFO_CHANGE_TITLE_ID,
 };
 
 // Save flags
@@ -230,21 +199,21 @@ list_t * ReadUsbList(const char* userPath);
 list_t * ReadUserList(const char* userPath);
 list_t * ReadOnlineList(const char* urlPath);
 list_t * ReadBackupList(const char* userPath);
-list_t * ReadVmcList(const char* userPath);
 void UnloadGameList(list_t * list);
 char * readTextFile(const char * path, long* size);
 int sortSaveList_Compare(const void* A, const void* B);
 int sortSaveList_Compare_TitleID(const void* A, const void* B);
 int sortCodeList_Compare(const void* A, const void* B);
-int ReadCodes(save_entry_t * save);
-int ReadVmcCodes(save_entry_t * game);
 int ReadVmuCodes(save_entry_t * save);
+int ReadExtCodes(save_entry_t * save);
+uint8_t* get_dc_file_icon(const char* path);
 uint8_t* get_vmu_save_icon(const save_entry_t* save);
 int vmu_save_read(const save_entry_t* save, uint8_t** data, size_t* len);
 int vmu_save_write(const save_entry_t* save, const uint8_t* data, size_t len);
 int vmu_file_read(const char* vmu_path, const char* name, uint8_t** data, size_t* len);
 int vmu_file_write(const char* vmu_path, const char* name, const uint8_t* data, size_t len);
 int vmu_save_delete(const save_entry_t* save);
+int dc_save_file_read(const char* path, uint8_t dirent[32], uint8_t** data, size_t* len);
 int ReadOnlineSaves(save_entry_t * game);
 int ReadBackupCodes(save_entry_t * bup);
 

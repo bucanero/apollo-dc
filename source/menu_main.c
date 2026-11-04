@@ -50,16 +50,6 @@ void initMenuOptions(void)
 	}
 }
 
-static void LoadFileTexture(const char* fname, int idx)
-{
-	LOG("Loading '%s'", fname);
-	if (menu_textures[idx].texture)
-		SDL_DestroyTexture(menu_textures[idx].texture);
-
-	menu_textures[idx].texture = NULL;
-	menu_textures[idx].size = LoadMenuTexture(fname, idx);
-}
-
 static int LoadUserSaves(save_list_t* save_list, int update_path)
 {
 	if (save_list->list)
@@ -135,9 +125,10 @@ static void SetMenu(int id)
 	switch (menu_id) //Leaving menu
 	{
 		case MENU_VMC_SAVES:
-			if (id == MENU_MAIN_SCREEN)
+			// back to External Saves (or the main menu): the image's changes are already
+			// written to its file, the list can go
+			if (id == MENU_MAIN_SCREEN || id == MENU_USB_SAVES)
 			{
-				LOG("Saving VMC changes...");
 				UnloadGameList(vmc_saves.list);
 				vmc_saves.list = NULL;
 			}
@@ -155,10 +146,10 @@ static void SetMenu(int id)
 			// to it: keep the flag until we leave to the save list.
 			// Clear the flag before reloading: reloading the list frees every entry,
 			// selected_entry included.
-			if ((selected_entry->flags & SAVE_FLAG_UPDATED) && id == MENU_HDD_SAVES)
+			if ((selected_entry->flags & SAVE_FLAG_UPDATED) && (id == MENU_HDD_SAVES || id == MENU_VMC_SAVES))
 			{
 				selected_entry->flags ^= SAVE_FLAG_UPDATED;
-				RefreshUserSaves(&hdd_saves, MENU_HDD_SAVES);
+				RefreshUserSaves((id == MENU_HDD_SAVES) ? &hdd_saves : &vmc_saves, id);
 			}
 			break;
 
@@ -276,6 +267,9 @@ static void SetMenu(int id)
 			else if (selected_entry->type == FILE_TYPE_VMS)
 				LoadVmuIconTexture(get_vmu_save_icon(selected_entry), icon_png_file_index);
 
+			else if (selected_entry->type == FILE_TYPE_DCI || selected_entry->type == FILE_TYPE_VMI)
+				LoadVmuIconTexture(get_dc_file_icon(selected_entry->path), icon_png_file_index);
+
 			else if (selected_entry->flags & SAVE_FLAG_VMC)
 			{
 //				LoadRawIconTexture(loadVmcIcon(selected_entry->dir_name, selected_entry->icon), icon_png_file_index);
@@ -381,16 +375,23 @@ static void doSaveMenu(save_list_t * save_list)
 
 	else if (dcPadGetButtonPressed(CONT_B))
 	{
-		SetMenu(MENU_MAIN_SCREEN);
+		// a VMU image was opened from External Saves: go back there
+		SetMenu(save_list == &vmc_saves ? MENU_USB_SAVES : MENU_MAIN_SCREEN);
 		return;
 	}
 	else if (dcPadGetButtonPressed(CONT_A))
 	{
 		selected_entry = list_get_item(save_list->list, menu_sel);
 
+		// a VMU image: open it like a VMU (always re-read: it may not be the one opened last)
 		if (selected_entry->type == FILE_TYPE_VMC && selected_entry->flags & SAVE_FLAG_VMC)
 		{
-			strncpy(vmc_saves.path, selected_entry->path, sizeof(vmc_saves.path));
+			if (vmc_saves.list)
+			{
+				UnloadGameList(vmc_saves.list);
+				vmc_saves.list = NULL;
+			}
+			snprintf(vmc_saves.path, sizeof(vmc_saves.path), "%s", selected_entry->path);
 			SetMenu(MENU_VMC_SAVES);
 			return;
 		}
@@ -579,13 +580,10 @@ static void doHexEditor(void)
 	else if (dcPadGetButtonPressed(CONT_B))
 	{
 		if (show_dialog(DIALOG_TYPE_YESNO, "Save changes to %s?", strrchr(hex_data.filepath, '/') + 1) &&
-			((selected_entry->type == FILE_TYPE_VMS) ?
+			!((selected_entry->type == FILE_TYPE_VMS) ?
 				vmu_save_write(selected_entry, hex_data.data, hex_data.size) :
 				(write_buffer(hex_data.filepath, hex_data.data, hex_data.size) == SUCCESS)))
-		{
-//			selected_centry->options[option_index].value[menu_sel][1] = CMD_IMPORT_DATA_FILE;
-//			execCodeCommand(selected_centry, selected_centry->options[option_index].value[menu_sel]+1);
-		}
+			show_message("Error! Couldn't save changes to:\n%s", hex_data.filepath);
 		selected_centry->activated = 0;
 		free(hex_data.data);
 
@@ -668,8 +666,6 @@ static void doCodeOptionsMenu(void)
 
 			if (optval->value[0] == CMD_HEX_EDIT_FILE)
 			{
-//				code->options[option_index].value[menu_sel][1] = CMD_DECRYPT_FILE;
-//				execCodeCommand(code, code->options[option_index].value[menu_sel]+1);
 
 				memset(&hex_data, 0, sizeof(hex_data));
 				snprintf(hex_data.filepath, sizeof(hex_data.filepath), "%s%s", selected_entry->path, optval->name);
