@@ -12,6 +12,7 @@
 #include "dcvmu.h"
 #include "dcsave.h"
 #include "vmu_dev.h"
+#include "sjis.h"
 
 #define UTF8_CHAR_STAR		"\xE2\x98\x85"
 
@@ -159,15 +160,17 @@ static save_entry_t* _createSaveEntry(uint16_t flag, const char* name)
  * creator app, icons, CRC) at block 0 of a data file, or block `hdroff` of a mini-game.
  */
 
-// Copy a VMS text field for display: control and non-ASCII (Shift-JIS) bytes become spaces, padding trimmed
-static void dc_copy_text(char* dst, const char* src, int len)
+// A VMS text field for display: Shift-JIS converted to UTF-8, padding trimmed.
+// UTF-8 can take 3 bytes per Shift-JIS byte (half-width kana): size `dst` for that
+#define DC_TEXT_SIZE(n)     ((n) * 3 + 1)
+
+static void dc_copy_text(char* dst, size_t dst_size, const char* src, int len)
 {
-	int j = 0;
+	int j;
 
-	for (int i = 0; i < len && src[i]; i++)
-		dst[j++] = ((uint8_t)src[i] >= 0x20 && (uint8_t)src[i] < 0x7F) ? src[i] : ' ';
-	dst[j] = 0;
+	sjis_to_utf8(src, len, dst, dst_size);
 
+	j = strlen(dst);
 	while (j > 0 && dst[j - 1] == ' ')
 		dst[--j] = 0;
 
@@ -180,15 +183,15 @@ static void dc_copy_text(char* dst, const char* src, int len)
 // Title from the first 0x80 bytes of a VMS header: the Dreamcast description, else the VMU one
 static int dc_header_title(const uint8_t* hdr, char* title, int size)
 {
-	char tmp[33];
+	char tmp[DC_TEXT_SIZE(32)];
 
 	// same plausibility check as vms_parse(): files like ICONDATA_VMS have no VMS header
 	if (read_le_uint16(hdr + 0x40) > 16 || read_le_uint16(hdr + 0x44) > 3)
 		return 0;
 
-	dc_copy_text(tmp, (const char*) hdr + 0x10, 32);
+	dc_copy_text(tmp, sizeof(tmp), (const char*) hdr + 0x10, 32);
 	if (!tmp[0])
-		dc_copy_text(tmp, (const char*) hdr, 16);
+		dc_copy_text(tmp, sizeof(tmp), (const char*) hdr, 16);
 
 	snprintf(title, size, "%s", tmp);
 	return (title[0] != 0);
@@ -1507,7 +1510,7 @@ list_t * ReadUserList(const char* userPath)
 	vmu_dirent_t ent;
 	vmudev_file_t *files;
 	int count;
-	char title[64], patch_id[32];
+	char title[DC_TEXT_SIZE(32)], patch_id[32];
 	char *titleid_db;
 	save_entry_t *item;
 	code_entry_t *cmd;
@@ -1793,7 +1796,7 @@ int get_save_details(const save_entry_t* save, char **details)
 		size_t len;
 		vmu_dirent_t ent;
 		vms_header_t vms;
-		char desc_dc[33] = "", desc_vms[17] = "", app_id[17] = "", crc[32] = "n/a";
+		char desc_dc[DC_TEXT_SIZE(32)] = "", desc_vms[DC_TEXT_SIZE(16)] = "", app_id[DC_TEXT_SIZE(16)] = "", crc[32] = "n/a";
 		int icons = 0;
 
 		if (!vmudev_read_file(save->path, save->dir_name, raw, &data, &len))
@@ -1804,9 +1807,9 @@ int get_save_details(const save_entry_t* save, char **details)
 		{
 			int calc = vms_calc_crc(&vms);
 
-			dc_copy_text(desc_dc, vms.desc_dc, 32);
-			dc_copy_text(desc_vms, vms.desc_vms, 16);
-			dc_copy_text(app_id, vms.app_id, 16);
+			dc_copy_text(desc_dc, sizeof(desc_dc), vms.desc_dc, 32);
+			dc_copy_text(desc_vms, sizeof(desc_vms), vms.desc_vms, 16);
+			dc_copy_text(app_id, sizeof(app_id), vms.app_id, 16);
 			icons = vms.icons;
 			snprintf(crc, sizeof(crc), "%04X (%s)", vms.crc, (calc == vms.crc) ? "OK" : "mismatch");
 		}

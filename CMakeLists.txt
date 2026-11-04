@@ -78,6 +78,7 @@ add_executable(${PROJECT_NAME}
   source/menu_main.c
   source/saves.c
   source/settings.c
+  source/sjis.c
   source/ttf_fonts.c
   source/util.c
   source/dcpad.c
