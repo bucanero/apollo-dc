@@ -221,7 +221,7 @@ static void restore_timestamp(maple_device_t* dev, const vmu_dir_t* src)
 
 	vmufs_mutex_lock();
 
-	if (vmufs_root_read(dev, &root) < 0 || (dir = malloc(vmufs_dir_blocks(&root) * VMU_BLOCK_SIZE)) == NULL)
+	if (vmufs_root_read(dev, &root) < 0 || (dir = malloc(vmufs_dir_blocks(&root))) == NULL)
 		goto unlock;
 
 	raw_name(src, fn);
