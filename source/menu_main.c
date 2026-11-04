@@ -392,6 +392,7 @@ static void doSaveMenu(save_list_t * save_list)
 				vmc_saves.list = NULL;
 			}
 			snprintf(vmc_saves.path, sizeof(vmc_saves.path), "%s", selected_entry->path);
+			menu_old_sel[MENU_VMC_SAVES] = 0;
 			SetMenu(MENU_VMC_SAVES);
 			return;
 		}
