@@ -1069,7 +1069,16 @@ list_t * ReadUsbList(const char* userPath)
 
 //	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " Start local Web Server", CMD_SAVE_WEBSERVER);
 //	list_append(item->codes, cmd);
-	list_append(list, item);
+	if (list_count(item->codes))
+		list_append(list, item);
+	else
+	{
+		list_free(item->codes);
+		free(item->path);
+		free(item->dir_name);
+		free(item->name);
+		free(item);
+	}
 
 	for (int i = 0; ext_roots[i]; i++)
 	{
