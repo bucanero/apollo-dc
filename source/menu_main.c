@@ -50,17 +50,7 @@ void initMenuOptions(void)
 	}
 }
 
-static void LoadFileTexture(const char* fname, int idx)
-{
-	LOG("Loading '%s'", fname);
-	if (menu_textures[idx].texture)
-		SDL_DestroyTexture(menu_textures[idx].texture);
-
-	menu_textures[idx].texture = NULL;
-	menu_textures[idx].size = LoadMenuTexture(fname, idx);
-}
-
-static int ReloadUserSaves(save_list_t* save_list)
+static int LoadUserSaves(save_list_t* save_list, int update_path)
 {
 	if (save_list->list)
 	{
@@ -68,7 +58,7 @@ static int ReloadUserSaves(save_list_t* save_list)
 		save_list->list = NULL;
 	}
 
-	if (save_list->UpdatePath)
+	if (update_path && save_list->UpdatePath)
 		save_list->UpdatePath(save_list->path);
 
 	init_loading_screen("Loading saves...");
@@ -90,6 +80,22 @@ static int ReloadUserSaves(save_list_t* save_list)
 	return list_count(save_list->list);
 }
 
+static int ReloadUserSaves(save_list_t* save_list)
+{
+	return LoadUserSaves(save_list, 1);
+}
+
+// Re-read a list from the same place (same VMU), keeping the cursor in range
+static int RefreshUserSaves(save_list_t* save_list, int menu)
+{
+	int count = LoadUserSaves(save_list, 0);
+
+	if (menu_old_sel[menu] >= count)
+		menu_old_sel[menu] = count ? count - 1 : 0;
+
+	return count;
+}
+
 static code_entry_t* LoadRawPatch(void)
 {
 	char patchPath[256];
@@ -98,6 +104,29 @@ static code_entry_t* LoadRawPatch(void)
 	centry->name = strdup(selected_entry->title_id);
 	snprintf(patchPath, sizeof(patchPath), APOLLO_DATA_PATH "%s.savepatch", selected_entry->title_id);
 	centry->codes = readTextFile(patchPath, NULL);
+
+	return centry;
+}
+
+static code_entry_t* LoadOnlineSaveDetails(void)
+{
+	code_entry_t* centry = calloc(1, sizeof(code_entry_t));
+	centry->name = strdup(selected_entry->title_id);
+	centry->file = strdup(selected_centry->name+2);
+
+	for (int i = 55, len = strlen(centry->file); i < len; i += 55)
+		for (int j = i; j < len; j++)
+			if (centry->file[j] == ' ')
+			{
+				centry->file[j] = '\n';
+				i = j;
+				break;
+			}
+
+	asprintf(&centry->codes, "Game: %s\nTitle ID: %s\nFile: %s\n%s%s\n----- Details -----\n%s\n",
+		selected_entry->name, selected_entry->title_id, selected_centry->file, selected_entry->path, selected_centry->file, centry->file);
+	free(centry->file);
+	centry->file = NULL;
 
 	return centry;
 }
@@ -119,9 +148,10 @@ static void SetMenu(int id)
 	switch (menu_id) //Leaving menu
 	{
 		case MENU_VMC_SAVES:
-			if (id == MENU_MAIN_SCREEN)
+			// back to External Saves (or the main menu): the image's changes are already
+			// written to its file, the list can go
+			if (id == MENU_MAIN_SCREEN || id == MENU_USB_SAVES)
 			{
-				LOG("Saving VMC changes...");
 				UnloadGameList(vmc_saves.list);
 				vmc_saves.list = NULL;
 			}
@@ -134,9 +164,20 @@ static void SetMenu(int id)
 			menu_textures[icon_png_file_index].size = 0;
 			break;
 
+		case MENU_PATCHES: //Cheat Selection Menu
+			// The patch menu's own screens (code options, hex editor, details) come back
+			// to it: keep the flag until we leave to the save list.
+			// Clear the flag before reloading: reloading the list frees every entry,
+			// selected_entry included.
+			if ((selected_entry->flags & SAVE_FLAG_UPDATED) && (id == MENU_HDD_SAVES || id == MENU_VMC_SAVES))
+			{
+				selected_entry->flags ^= SAVE_FLAG_UPDATED;
+				RefreshUserSaves((id == MENU_HDD_SAVES) ? &hdd_saves : &vmc_saves, id);
+			}
+			break;
+
 		case MENU_SETTINGS: //Options Menu
 		case MENU_CREDITS: //About Menu
-		case MENU_PATCHES: //Cheat Selection Menu
 			break;
 
 		case MENU_SAVE_DETAILS:
@@ -233,7 +274,10 @@ static void SetMenu(int id)
 			char iconfile[256] = {0};
 
 			menu_textures[icon_png_file_index].size = 0;
-			if (selected_entry->flags & SAVE_FLAG_ONLINE)
+			if ((selected_entry->flags & SAVE_FLAG_ONLINE) && selected_entry->path[0] == '/')
+				snprintf(iconfile, sizeof(iconfile), "%sicon0.png", selected_entry->path);
+
+			else if (selected_entry->flags & SAVE_FLAG_ONLINE)
 			{
 				snprintf(iconfile, sizeof(iconfile), APOLLO_LOCAL_CACHE "%s.PNG", selected_entry->title_id);
 
@@ -243,6 +287,12 @@ static void SetMenu(int id)
 //				if (selected_entry->flags & SAVE_FLAG_PSV && file_exists(iconfile) != SUCCESS)
 //					http_download(selected_entry->path, "icon0.png", iconfile, 0);
 			}
+			else if (selected_entry->type == FILE_TYPE_VMS)
+				LoadVmuIconTexture(get_vmu_save_icon(selected_entry), icon_png_file_index);
+
+			else if (selected_entry->type == FILE_TYPE_DCI || selected_entry->type == FILE_TYPE_VMI)
+				LoadVmuIconTexture(get_dc_file_icon(selected_entry->path), icon_png_file_index);
+
 			else if (selected_entry->flags & SAVE_FLAG_VMC)
 			{
 //				LoadRawIconTexture(loadVmcIcon(selected_entry->dir_name, selected_entry->icon), icon_png_file_index);
@@ -264,6 +314,7 @@ static void SetMenu(int id)
 			break;
 
 		case MENU_SAVE_DETAILS: //Save Detail View Menu
+			menu_old_sel[MENU_SAVE_DETAILS] = 0;
 			if (apollo_config.doAni)
 				Draw_CheatsMenu_View_Ani(selected_entry->name);
 			break;
@@ -348,16 +399,24 @@ static void doSaveMenu(save_list_t * save_list)
 
 	else if (dcPadGetButtonPressed(CONT_B))
 	{
-		SetMenu(MENU_MAIN_SCREEN);
+		// a VMU image was opened from External Saves: go back there
+		SetMenu(save_list == &vmc_saves ? MENU_USB_SAVES : MENU_MAIN_SCREEN);
 		return;
 	}
 	else if (dcPadGetButtonPressed(CONT_A))
 	{
 		selected_entry = list_get_item(save_list->list, menu_sel);
 
+		// a VMU image: open it like a VMU (always re-read: it may not be the one opened last)
 		if (selected_entry->type == FILE_TYPE_VMC && selected_entry->flags & SAVE_FLAG_VMC)
 		{
-			strncpy(vmc_saves.path, selected_entry->path, sizeof(vmc_saves.path));
+			if (vmc_saves.list)
+			{
+				UnloadGameList(vmc_saves.list);
+				vmc_saves.list = NULL;
+			}
+			snprintf(vmc_saves.path, sizeof(vmc_saves.path), "%s", selected_entry->path);
+			menu_old_sel[MENU_VMC_SAVES] = 0;
 			SetMenu(MENU_VMC_SAVES);
 			return;
 		}
@@ -417,7 +476,7 @@ static void doMainMenu(void)
 		return;
 	}
 
-	else if(dcPadGetButtonPressed(CONT_B) && show_dialog(DIALOG_TYPE_YESNO, "Exit to XMB?"))
+	else if(dcPadGetButtonPressed(CONT_B) && show_dialog(DIALOG_TYPE_YESNO, "Exit Apollo?"))
 		close_app = 1;
 	
 	Draw_MainMenu();
@@ -546,11 +605,10 @@ static void doHexEditor(void)
 	else if (dcPadGetButtonPressed(CONT_B))
 	{
 		if (show_dialog(DIALOG_TYPE_YESNO, "Save changes to %s?", strrchr(hex_data.filepath, '/') + 1) &&
-			(write_buffer(hex_data.filepath, hex_data.data, hex_data.size) == SUCCESS))
-		{
-//			selected_centry->options[option_index].value[menu_sel][1] = CMD_IMPORT_DATA_FILE;
-//			execCodeCommand(selected_centry, selected_centry->options[option_index].value[menu_sel]+1);
-		}
+			!((selected_entry->type == FILE_TYPE_VMS) ?
+				vmu_save_write(selected_entry, hex_data.data, hex_data.size) :
+				(write_buffer(hex_data.filepath, hex_data.data, hex_data.size) == SUCCESS)))
+			show_message("Error! Couldn't save changes to:\n%s", hex_data.filepath);
 		selected_centry->activated = 0;
 		free(hex_data.data);
 
@@ -633,12 +691,12 @@ static void doCodeOptionsMenu(void)
 
 			if (optval->value[0] == CMD_HEX_EDIT_FILE)
 			{
-//				code->options[option_index].value[menu_sel][1] = CMD_DECRYPT_FILE;
-//				execCodeCommand(code, code->options[option_index].value[menu_sel]+1);
 
 				memset(&hex_data, 0, sizeof(hex_data));
 				snprintf(hex_data.filepath, sizeof(hex_data.filepath), "%s%s", selected_entry->path, optval->name);
-				if (read_buffer(hex_data.filepath, &hex_data.data, &hex_data.size) < 0)
+				if ((selected_entry->type == FILE_TYPE_VMS) ?
+					!vmu_save_read(selected_entry, &hex_data.data, &hex_data.size) :
+					(read_buffer(hex_data.filepath, &hex_data.data, &hex_data.size) < 0))
 				{
 					show_message("Unable to load\n%s", hex_data.filepath);
 					SetMenu(last_menu_id[MENU_CODE_OPTIONS]);
@@ -702,6 +760,14 @@ static void doPatchMenu(void)
 		if (selected_centry->type == PATCH_COMMAND)
 			execCodeCommand(selected_centry, selected_centry->codes);
 
+		// a deleted save has nothing left to show: go back to the list, which reloads it.
+		// Leaving frees selected_entry and its codes, so return right away
+		if (selected_centry->codes[0] == CMD_DELETE_SAVE && (selected_entry->flags & SAVE_FLAG_UPDATED))
+		{
+			SetMenu(last_menu_id[MENU_PATCHES]);
+			return;
+		}
+
 		if (selected_centry->activated)
 		{
 			// Only activate Required codes if a cheat is selected
@@ -750,6 +816,13 @@ static void doPatchMenu(void)
 	else if (dcPadGetButtonPressed(CONT_Y))
 	{
 		selected_centry = list_get_item(selected_entry->codes, menu_sel);
+
+		if (selected_entry->flags & SAVE_FLAG_ONLINE)
+		{
+			selected_centry = LoadOnlineSaveDetails();
+			SetMenu(MENU_SAVE_DETAILS);
+			return;
+		}
 
 		if (selected_centry->type == PATCH_GAMEGENIE || selected_centry->type == PATCH_BSD ||
 			selected_centry->type == PATCH_TROP_LOCK || selected_centry->type == PATCH_TROP_UNLOCK)

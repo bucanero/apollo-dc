@@ -163,20 +163,34 @@ static rawImage_t *imgLoadPngFromFile(const char *path)
 
 static void rawImageTexture(const rawImage_t *img, png_texture *tex)
 {
-	// convert ABGR8888 to ARGB1555
+	int count = img->width * img->height;
+	int translucent = 0;
+	SDL_Surface* surface;
 	uint16_t *ptr = (uint16_t *)img->datap;
-	for (int i = 0; i < img->width * img->height; i++)
+
+	// ARGB1555 keeps more colour but only 1 bit of alpha, which wipes out translucent
+	// overlays (panels, selection bar, scrollbar): those get ARGB4444 instead
+	for (int i = 0; i < count && !translucent; i++)
 	{
-		uint32_t pixel = img->datap[i];
-		uint8_t a = (((pixel >> 24) & 0xFF) > 127) ? 1 : 0; // 1 bit alpha
-		uint8_t b = ((pixel >> 16) & 0xFF) >> 3;
-		uint8_t g = ((pixel >> 8) & 0xFF) >> 3;
-		uint8_t r = (pixel & 0xFF) >> 3;
-		
-		ptr[i] = (a << 15) | (r << 10) | (g << 5) | b;
+		uint8_t a = (img->datap[i] >> 24) & 0xFF;
+		translucent = (a > 0x10 && a < 0xF0);
 	}
 
-	SDL_Surface* surface = SDL_CreateRGBSurfaceFrom(img->datap, img->width, img->height, 16, 2 * img->width, 0x7C00, 0x03E0, 0x001F, 0x8000);
+	// convert ABGR8888 in place (16-bit output never overtakes the 32-bit input)
+	for (int i = 0; i < count; i++)
+	{
+		uint32_t pixel = img->datap[i];
+
+		if (translucent)
+			ptr[i] = ((pixel >> 28) << 12) | (((pixel & 0xFF) >> 4) << 8) | (((pixel >> 12) & 0x0F) << 4) | ((pixel >> 20) & 0x0F);
+		else
+			ptr[i] = ((((pixel >> 24) & 0xFF) > 127) << 15) | (((pixel & 0xFF) >> 3) << 10) | (((pixel >> 11) & 0x1F) << 5) | ((pixel >> 19) & 0x1F);
+	}
+
+	if (translucent)
+		surface = SDL_CreateRGBSurfaceFrom(img->datap, img->width, img->height, 16, 2 * img->width, 0x0F00, 0x00F0, 0x000F, 0xF000);
+	else
+		surface = SDL_CreateRGBSurfaceFrom(img->datap, img->width, img->height, 16, 2 * img->width, 0x7C00, 0x03E0, 0x001F, 0x8000);
 
 	tex->width = img->width;
 	tex->height = img->height;
@@ -214,16 +228,66 @@ int LoadRawIconTexture(uint8_t* icon, int idx)
 	return 1;
 }
 
-int LoadIconTexture(const char* fname, int idx)
+// A 32x32 RGBA icon (VMS save icon), scaled 2x to 64x64 with nearest neighbour so the pixel art stays crisp
+int LoadVmuIconTexture(uint8_t* rgba, int idx)
 {
-	uint8_t* icon;
-	size_t len;
+	rawImage_t raw;
+	const uint32_t* src = (const uint32_t*) rgba;
 
-	LOG("Loading '%s'", fname);
-	if (read_buffer(fname, &icon, &len) < 0)
+	if (menu_textures[idx].texture)
+	{
+		SDL_DestroyTexture(menu_textures[idx].texture);
+		menu_textures[idx].texture = NULL;
+	}
+
+	if (!rgba)
 		return 0;
 
-	return (LoadRawIconTexture(icon, idx));
+	raw.width = 64;
+	raw.height = 64;
+	raw.datap = malloc(raw.width * raw.height * sizeof(uint32_t));
+
+	for (int y = 0; raw.datap && y < raw.height; y++)
+		for (int x = 0; x < raw.width; x++)
+			raw.datap[y * raw.width + x] = src[(y / 2) * 32 + (x / 2)];
+
+	free(rgba);
+	if (!raw.datap)
+		return 0;
+
+	menu_textures[idx].size = 1;
+	rawImageTexture(&raw, &menu_textures[idx]);
+	free(raw.datap);
+
+	return 1;
+}
+
+// A PNG icon: 32x32 ones (Saves DB game icons) get the same 2x scaling as VMU save icons
+int LoadIconTexture(const char* fname, int idx)
+{
+	rawImage_t* img;
+
+	LOG("Loading '%s'", fname);
+	if ((img = imgLoadPngFromFile(fname)) == NULL)
+		return 0;
+
+	if (img->width == 32 && img->height == 32)
+	{
+		uint8_t* rgba = (uint8_t*) img->datap;     // LoadVmuIconTexture() frees it
+
+		free(img);
+		return LoadVmuIconTexture(rgba, idx);
+	}
+
+	if (menu_textures[idx].texture)
+		SDL_DestroyTexture(menu_textures[idx].texture);
+
+	menu_textures[idx].size = 1;
+	rawImageTexture(img, &menu_textures[idx]);
+	free(img->datap);
+	free(img);
+
+	return 1;
 }
 
 int LoadMenuTexture(const char* path, int idx)
@@ -510,7 +574,8 @@ static void drawJar(uint8_t idx, int pos_x, int pos_y, const char* text, uint8_t
 		DrawTexture(&menu_textures[idx + JAR_COLUMNS], pos_x, pos_y, 0, menu_textures[idx + JAR_COLUMNS].width, menu_textures[idx + JAR_COLUMNS].height, 0xffffff00 | alpha);
 
 	SetFontColor(APP_FONT_MENU_COLOR | (alpha == 0xFF ? (active ? 0xFF : 0x20) : alpha), 0);
-	DrawStringMono(pos_x + (menu_textures[idx].width * SCREEN_W_ADJ / 2), pos_y - 30, text);
+	// the jar texture is drawn at its own size, so its middle is width/2 (not scaled by SCREEN_W_ADJ)
+	DrawStringMono(pos_x + (menu_textures[idx].width / 2), pos_y - 30, text);
 }
 
 static void _drawColumn(uint8_t idx, int pos_x, int pos_y, uint8_t alpha)
@@ -548,7 +613,7 @@ static void drawJars(uint8_t alpha)
 	drawJar(jar_hdd_png_index, jar_hdd_png_x, jar_hdd_png_y, (alpha == 0xFF ? "Saves" : ""), alpha);
 
 	//Online cheats
-	drawJar(jar_db_png_index, jar_db_png_x, jar_db_png_y, (alpha == 0xFF ? "Online DB" : ""), alpha);
+	drawJar(jar_db_png_index, jar_db_png_x, jar_db_png_y, (alpha == 0xFF ? "Saves DB" : ""), alpha);
 	
 	//User Backup
 	drawJar(jar_bup_png_index, jar_bup_png_x, jar_bup_png_y, (alpha == 0xFF ? "Tools" : ""), alpha);

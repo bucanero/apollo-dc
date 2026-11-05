@@ -4,6 +4,8 @@
 
 #include "types.h"
 #include "ttf_render.h"
+#include "sjis.h"
+#include <dc/biosfont.h>
 #include "menu.h"
 
 /******************************************************************************************************************************************************/
@@ -305,9 +307,32 @@ static void DrawTextBox_ttf(SDL_Texture* bitmap, float x, float y, float z, floa
 #define TTF_UY 24 * (TEX_SZ /32)
 
 
+/*
+ * Dreamcast BIOS font: every console has a 24x24 Japanese font in ROM. Characters no TTF
+ * covers are looked up there: full-width ones (kana, kanji) 24 px wide, half-width kana 12.
+ * Draws into `bitmap` (TEX_SZ x TEX_SZ, 8 bpp coverage); returns the glyph width, or 0.
+ */
+static int bios_glyph(u32 ch, u8 *bitmap)
+{
+    static int encoding_set = 0;
+    uint16_t sjis = unicode_to_sjis(ch);
+
+    if(!sjis) return 0;
+
+    if(!encoding_set) {
+        bfont_set_encoding(BFONT_CODE_SJIS);
+        encoding_set = 1;
+    }
+
+    if(sjis < 0x100)    // half-width katakana
+        return bfont_draw_ex(bitmap, TEX_SZ, 0xFF, 0, 8, true, sjis, false, true) ? BFONT_THIN_WIDTH : 0;
+
+    return bfont_draw_ex(bitmap, TEX_SZ, 0xFF, 0, 8, true, sjis, true, false) ? BFONT_WIDE_WIDTH : 0;
+}
+
 int display_ttf_string(int posx, int posy, const char *string, u32 color, u32 bkcolor, int sw, int sh, int (*DrawIcon_cb)(int, int, char))
 {
-    int l,n, m, ww, ww2;
+    int l,n, m, ww, ww2, bios_w;
     u8 colorc;
     u32 ttf_char;
     u8 *ustring = (u8 *) string;
@@ -399,6 +424,7 @@ int display_ttf_string(int posx, int posy, const char *string, u32 color, u32 bk
             if(f_face[3]) FT_Set_Pixel_Sizes(face[3], TTF_UX, TTF_UY);
 
             FT_GlyphSlot slot = NULL;
+            bios_w = 0;
 
             u8 bitmap[TEX_SZ * TEX_SZ];
             memset(bitmap, 0, TEX_SZ * TEX_SZ);
@@ -415,9 +441,19 @@ int display_ttf_string(int posx, int posy, const char *string, u32 color, u32 bk
                 && !FT_Load_Glyph(face[2], index, FT_LOAD_RENDER )) slot = face[2]->glyph;
             else if(f_face[3] && (index = FT_Get_Char_Index(face[3], ttf_char))!=0 
                 && !FT_Load_Glyph(face[3], index, FT_LOAD_RENDER )) slot = face[3]->glyph;
+            else if((bios_w = bios_glyph(ttf_char, bitmap)) > 0) {
+                // no TTF has it, but the Dreamcast BIOS font does (Japanese)
+                ttf_font_datas[l].flags = 1;
+                ttf_font_datas[l].y_start = 0;
+                ttf_font_datas[l].height = BFONT_HEIGHT;
+                ttf_font_datas[l].width = bios_w;
+                ttf_font_datas[l].ttf = ttf_char;
+                ttf_font_datas[l].text[0] = create_texture(bitmap, 0xFF000000);
+                ttf_font_datas[l].text[1] = create_texture(bitmap, 0xFFFFFFFF);
+            }
             else ttf_char = 0;
 
-            if(ttf_char!=0) {
+            if(ttf_char!=0 && slot) {
                 ww = ww2 = 0;
 
                 int y_correction = TTF_UY - 1 - slot->bitmap_top;
@@ -448,7 +484,7 @@ int display_ttf_string(int posx, int posy, const char *string, u32 color, u32 bk
                 ttf_font_datas[l].text[0] = create_texture(bitmap, 0xFF000000);
                 ttf_font_datas[l].text[1] = create_texture(bitmap, 0xFFFFFFFF);
             }
-            else continue;
+            else if(!bios_w) continue;
         }
 
         // displaying the character

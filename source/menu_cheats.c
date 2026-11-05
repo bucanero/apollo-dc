@@ -341,24 +341,27 @@ void DrawGameList(int selIndex, list_t * games, u8 alpha)
                 goto skip_draw;
 
             SetFontColor(APP_FONT_COLOR | a, 0);
+			// title ID is right-aligned against the tag column; the name is cut short before it
+			int tag_x = SCREEN_WIDTH - 20 - (MENU_ICON_OFF * 2);
+			int tid_x = item->title_id ? tag_x - 12 - WidthFromStr(item->title_id) : tag_x;
+
 			if (item->name)
 			{
 				char * nBuffer = strdup(item->name);
 				int game_name_width = 0;
-				while ((game_name_width = WidthFromStr(nBuffer)) > 0 && (MENU_ICON_OFF + (MENU_TITLE_OFF * 1) + game_name_width) > ((SCREEN_WIDTH - 50) - (MENU_ICON_OFF * 5)))
+				while ((game_name_width = WidthFromStr(nBuffer)) > 0 && (MENU_ICON_OFF + (MENU_TITLE_OFF * 1) + game_name_width) > (tid_x - 15))
 					nBuffer[strlen(nBuffer) - 1] = '\0';
 				DrawString(MENU_ICON_OFF + (MENU_TITLE_OFF * 1), game_y, nBuffer);
 				free(nBuffer);
 			}
 			if (item->title_id)
-				DrawString((SCREEN_WIDTH - 40) - (MENU_ICON_OFF * 5), game_y, item->title_id);
+				DrawString(tid_x, game_y, item->title_id);
 
 			if (item->flags & SAVE_FLAG_SELECTED)
 				DrawFormatString(MENU_ICON_OFF + MENU_TITLE_OFF - 30, game_y, "%c", CHAR_TAG_OWNER);
 
 			tmp[0] = ' ';
 			tmp[1] = ' ';
-			if (item->flags & SAVE_FLAG_PS2) tmp[0] = CHAR_TAG_PS2;
 			if (item->flags & SAVE_FLAG_DC) tmp[0] = CHAR_TAG_DC;
 			if (item->flags & SAVE_FLAG_PS1) tmp[0] = CHAR_TAG_PS1;
 			if (item->flags & SAVE_FLAG_LOCKED) tmp[1] = CHAR_TAG_LOCKED;

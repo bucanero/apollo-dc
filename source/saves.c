@@ -4,13 +4,16 @@
 #include <unistd.h>
 #include <time.h>
 #include <dirent.h>
-//#include <libmc.h>
 
 #include "saves.h"
 #include "common.h"
 #include "settings.h"
 #include "utils.h"
-//#include "mcio.h"
+#include "dcvmu.h"
+#include "dcsave.h"
+#include "vmu_dev.h"
+#include "vmu_card.h"
+#include "sjis.h"
 
 #define UTF8_CHAR_STAR		"\xE2\x98\x85"
 
@@ -106,42 +109,6 @@ static option_entry_t* _initOptions(int count)
 	return options;
 }
 
-static option_entry_t* _createMcOptions(int count, const char* name, char value)
-{
-	option_value_t* optval;
-	option_entry_t* options = _initOptions(count);
-
-	optval = malloc(sizeof(option_value_t));
-	asprintf(&optval->name, "%s (%s)", name, MC0_PATH);
-	asprintf(&optval->value, "%c%c", value, STORAGE_MC0);
-	list_append(options[0].opts, optval);
-
-	optval = malloc(sizeof(option_value_t));
-	asprintf(&optval->name, "%s (%s)", name, MC1_PATH);
-	asprintf(&optval->value, "%c%c", value, STORAGE_MC1);
-	list_append(options[0].opts, optval);
-
-	return options;
-}
-
-static option_entry_t* _createExtOptions(int count, const char* name, char value)
-{
-	option_value_t* optval;
-	option_entry_t* options = _initOptions(count);
-
-	optval = malloc(sizeof(option_value_t));
-	asprintf(&optval->name, "%s (%s)", name, USB_PATH);
-	asprintf(&optval->value, "%c%c", value, STORAGE_MASS);
-	list_append(options[0].opts, optval);
-
-	optval = malloc(sizeof(option_value_t));
-	asprintf(&optval->name, "%s (%s)", name, "host:/");
-	asprintf(&optval->value, "%c%c", value, STORAGE_HOST);
-	list_append(options[0].opts, optval);
-
-	return options;
-}
-
 static save_entry_t* _createSaveEntry(uint16_t flag, const char* name)
 {
 	save_entry_t* entry = (save_entry_t *)calloc(1, sizeof(save_entry_t));
@@ -151,8 +118,332 @@ static save_entry_t* _createSaveEntry(uint16_t flag, const char* name)
 	return entry;
 }
 
+/*
+ * Dreamcast VMU helpers
+ *
+ * Saves live on the VMU as single files. Each one carries a VMS header (descriptions,
+ * creator app, icons, CRC) at block 0 of a data file, or block `hdroff` of a mini-game.
+ */
+
+// A VMS text field for display: Shift-JIS converted to UTF-8, padding trimmed.
+// UTF-8 can take 3 bytes per Shift-JIS byte (half-width kana): size `dst` for that
+#define DC_TEXT_SIZE(n)     ((n) * 3 + 1)
+
+static void dc_copy_text(char* dst, size_t dst_size, const char* src, int len)
+{
+	int j;
+
+	sjis_to_utf8(src, len, dst, dst_size);
+
+	j = strlen(dst);
+	while (j > 0 && dst[j - 1] == ' ')
+		dst[--j] = 0;
+
+	char* start = dst;
+	while (*start == ' ')
+		start++;
+	memmove(dst, start, strlen(start) + 1);
+}
+
+// Title from the first 0x80 bytes of a VMS header: the Dreamcast description, else the VMU one
+static int dc_header_title(const uint8_t* hdr, char* title, int size)
+{
+	char tmp[DC_TEXT_SIZE(32)];
+
+	// same plausibility check as vms_parse(): files like ICONDATA_VMS have no VMS header
+	if (read_le_uint16(hdr + 0x40) > 16 || read_le_uint16(hdr + 0x44) > 3)
+		return 0;
+
+	dc_copy_text(tmp, sizeof(tmp), (const char*) hdr + 0x10, 32);
+	if (!tmp[0])
+		dc_copy_text(tmp, sizeof(tmp), (const char*) hdr, 16);
+
+	snprintf(title, size, "%s", tmp);
+	return (title[0] != 0);
+}
+
+// dctitleid.txt (from apollo-patches): "PATTERN<tab>PATCH_ID<tab>TITLE", first match wins
+static void dc_get_patch_id(const char* titleid_db, const char* filename, char* patch_id, size_t size)
+{
+	char pattern[32], id[32];
+	const char* line = titleid_db;
+
+	snprintf(patch_id, size, "%s", filename);
+
+	while (line && *line)
+	{
+		if (*line != '#' && sscanf(line, "%31[^\t\r\n]\t%31[^\t\r\n]", pattern, id) == 2 &&
+			wildcard_match_icase(filename, pattern))
+		{
+			snprintf(patch_id, size, "%s", id);
+			return;
+		}
+
+		line = strchr(line, '\n');
+		if (line)
+			line++;
+	}
+}
+
+static option_value_t* _newOption(const char* name, const char* value, int value_len)
+{
+	option_value_t* optval = malloc(sizeof(option_value_t));
+
+	optval->name = strdup(name);
+	optval->value = malloc(value_len + 1);
+	memcpy(optval->value, value, value_len);
+	optval->value[value_len] = 0;
+
+	return optval;
+}
+
+// Export / import destinations on the Dreamcast: SD card adapter, and the PC through dcload
+static option_entry_t* _createStorageOptions(const char* name, char cmd)
+{
+	char label[128];
+	char value[2] = {cmd, STORAGE_MASS};
+	option_entry_t* options = _initOptions(1);
+
+	snprintf(label, sizeof(label), "%s (%s)", name, USB_PATH);
+	list_append(options[0].opts, _newOption(label, value, 2));
+
+	value[1] = STORAGE_HOST;
+	snprintf(label, sizeof(label), "%s (%s)", name, HOST_PATH);
+	list_append(options[0].opts, _newOption(label, value, 2));
+
+	return options;
+}
+
+// Every other VMU plugged in; the value is {cmd, STORAGE_VMU, "/vmu/xN/"}. NULL if there is none.
+static option_entry_t* _createVmuOptions(const char* name, char cmd, const char* exclude)
+{
+	char paths[MAX_VMU_DEVICES][VMUDEV_PATH_LEN];
+	char names[MAX_VMU_DEVICES][VMUDEV_NAME_LEN];
+	char label[128], value[2 + VMUDEV_PATH_LEN];
+	option_entry_t* options = NULL;
+	int count = vmudev_list(paths, names, MAX_VMU_DEVICES);
+
+	for (int i = 0; i < count; i++)
+	{
+		if (exclude && strcmp(paths[i], exclude) == 0)
+			continue;
+
+		if (!options)
+			options = _initOptions(1);
+
+		value[0] = cmd;
+		value[1] = STORAGE_VMU;
+		strcpy(value + 2, paths[i]);
+		snprintf(label, sizeof(label), "%.60s %.47s", name, names[i]);
+		list_append(options[0].opts, _newOption(label, value, 2 + strlen(paths[i])));
+	}
+
+	return options;
+}
+
+static void _addVmuCopyCommand(list_t* codes, const char* title, const char* name, char cmd, const char* exclude)
+{
+	code_entry_t* entry;
+	option_entry_t* options = _createVmuOptions(name, cmd, exclude);
+
+	if (!options)
+		return;
+
+	entry = _createCmdCode(PATCH_COMMAND, title, CMD_CODE_NULL);
+	entry->options_count = 1;
+	entry->options = options;
+	list_append(codes, entry);
+}
+
+static void _addStorageCommand(list_t* codes, const char* title, const char* name, char cmd, int id)
+{
+	code_entry_t* entry = _createCmdCode(PATCH_COMMAND, title, CMD_CODE_NULL);
+
+	entry->options_count = 1;
+	entry->options = _createStorageOptions(name, cmd);
+	entry->options[0].id = id;
+	list_append(codes, entry);
+}
+
+// A save on a VMU or in a VMU image, by name (see vmu_card.h)
+int vmu_file_read(const char* vmu_path, const char* name, uint8_t** data, size_t* len)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+
+	return vmucard_read(vmu_path, name, raw, data, len);
+}
+
+int vmu_save_read(const save_entry_t* save, uint8_t** data, size_t* len)
+{
+	return vmu_file_read(save->path, save->dir_name, data, len);
+}
+
+// Same-size rewrite; a VMS CRC that was valid stays valid (see vmucard_overwrite)
+int vmu_file_write(const char* vmu_path, const char* name, const uint8_t* data, size_t len)
+{
+	return vmucard_overwrite(vmu_path, name, data, len);
+}
+
+int vmu_save_write(const save_entry_t* save, const uint8_t* data, size_t len)
+{
+	return vmu_file_write(save->path, save->dir_name, data, len);
+}
+
+int vmu_save_delete(const save_entry_t* save)
+{
+	return vmucard_delete(save->path, save->dir_name);
+}
+
+// What a Saves DB entry can do: import it into any VMU plugged in, or extract the
+// .VMI/.VMS to SD/PC (DC/SAVEDATA/, where "Import Saves to VMU" finds them)
+static option_entry_t* _createDbSaveOptions(void)
+{
+	char label[128];
+	char value[2] = {CMD_DOWNLOAD_USB, STORAGE_MASS};
+	option_entry_t* options = _createVmuOptions("Import to", CMD_DOWNLOAD_HDD, NULL);
+
+	if (!options)
+		options = _initOptions(1);
+
+	snprintf(label, sizeof(label), "Extract .VMI/.VMS to %s" DC_SAVES_PATH, USB_PATH);
+	list_append(options[0].opts, _newOption(label, value, 2));
+
+	value[1] = STORAGE_HOST;
+	snprintf(label, sizeof(label), "Extract .VMI/.VMS to %s" DC_SAVES_PATH, HOST_PATH);
+	list_append(options[0].opts, _newOption(label, value, 2));
+
+	return options;
+}
+
+/*
+ * The .VMS a .VMI describes is named after its resource field, and lives next
+ * to the .VMI. Browsers and file systems do not agree on the case of either,
+ * so try the resource name both ways, then the .VMI's own base name.
+ */
+static int read_vms(const char *vmi_path, const char *resource, uint8_t **buf, size_t *len)
+{
+	char path[256];
+	const char *base = strrchr(vmi_path, '/') ? strrchr(vmi_path, '/') + 1 : vmi_path;
+	int dirlen = (int)(base - vmi_path);
+	int stemlen = (int)strlen(base) - 4;
+
+	const char *tries[][2] = {
+		{ resource, ".VMS" }, { resource, ".vms" },
+		{ NULL, ".VMS" }, { NULL, ".vms" },
+	};
+
+	for (int i = 0; i < 4; i++)
+	{
+		if (tries[i][0])
+			snprintf(path, sizeof(path), "%.*s%s%s", dirlen, vmi_path, tries[i][0], tries[i][1]);
+		else
+			snprintf(path, sizeof(path), "%.*s%s", dirlen + stemlen, vmi_path, tries[i][1]);
+
+		if (read_buffer(path, buf, len) == 0)
+			return 1;
+	}
+
+	LOG("Error: can't find '%s.VMS' next to '%s'", resource, vmi_path);
+	return 0;
+}
+
+// Decode a .DCI, or a .VMI and its .VMS, into a directory entry and file data
+static int read_dc_save_file(const char* path, vmu_dirent_t* ent, uint8_t** data, size_t* dlen)
+{
+	uint8_t *buf;
+	size_t len;
+	int r;
+
+	if (read_buffer(path, &buf, &len) < 0)
+		return 0;
+
+	if (wildcard_match_icase(path, "*.DCI"))
+	{
+		r = dci_decode(buf, len, ent, data, dlen);
+		free(buf);
+
+		// keep the header offset only where it points inside the file
+		ent->hdroff = vms_header_offset(ent) / VMU_BLOCK_SIZE;
+		return (r == 0);
+	}
+
+	vmi_info_t info;
+	r = vmi_decode(buf, len, ent, &info);
+	free(buf);
+
+	if (r < 0 || !read_vms(path, info.resource, data, dlen))
+		return 0;
+
+	if (*dlen < info.filesize)
+	{
+		LOG("Error: the VMS holds %d bytes, the VMI expects %d", (int) *dlen, (int) info.filesize);
+		free(*data);
+		return 0;
+	}
+
+	*dlen = info.filesize;
+	return 1;
+}
+
+// A .DCI, or a .VMI and its .VMS: raw directory entry and file data (malloc'd)
+int dc_save_file_read(const char* path, uint8_t dirent[32], uint8_t** data, size_t* len)
+{
+	vmu_dirent_t ent;
+
+	if (!read_dc_save_file(path, &ent, data, len))
+		return 0;
+
+	vmu_dirent_encode(&ent, dirent);
+	return 1;
+}
+
+// The save's first icon frame as 32x32 RGBA (malloc'd), or NULL
+uint8_t* get_vmu_save_icon(const save_entry_t* save)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+	uint8_t *data, *icon = NULL;
+	vmu_dirent_t ent;
+	vms_header_t vms;
+	size_t len;
+
+	if (!vmucard_read(save->path, save->dir_name, raw, &data, &len))
+		return NULL;
+
+	vmu_dirent_decode(raw, &ent);
+	if (vms_parse(data, len, vms_header_offset(&ent), &vms) == 0)
+		icon = vms_icon_rgba(&vms, 0);
+
+	// ICONDATA_VMS has no VMS header, just the card's own icons
+	if (!icon && strcmp(ent.filename, "ICONDATA_VMS") == 0 && (icon = icondata_rgba(data, len, 1)) == NULL)
+		icon = icondata_rgba(data, len, 0);
+
+	free(data);
+	return icon;
+}
+
 static void _walk_dir_list(const char* startdir, const char* inputdir, const char* mask, list_t* list)
 {
+	// a VMU or a VMU image: its save files, read through the VMU layer
+	if (vmucard_is_device(inputdir) || vmucard_is_image_name(inputdir))
+	{
+		vmudev_file_t* files;
+		vmu_dirent_t ent;
+		int count;
+
+		if (!vmucard_scan(inputdir, &files, &count))
+			return;
+
+		for (int i = 0; i < count; i++)
+		{
+			vmu_dirent_decode(files[i].dirent, &ent);
+			if (wildcard_match_icase(ent.filename, mask))
+				list_append(list, strdup(ent.filename));
+		}
+
+		free(files);
+		return;
+	}
+
 	char fullname[256];	
 	struct dirent *dirp;
 	int len = strlen(startdir);
@@ -223,142 +514,6 @@ static option_entry_t* _getFileOptions(const char* save_path, const char* mask, 
 	return opt;
 }
 
-static void _addBackupCommands(save_entry_t* item)
-{
-	code_entry_t* cmd;
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " Apply Changes", CMD_RESIGN_SAVE);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " View Save Details", CMD_VIEW_DETAILS);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " File Backup " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Copy save game", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = (item->flags & SAVE_FLAG_MEMCARD) ?
-		_createExtOptions(2, "Copy Save to Mass Storage", CMD_COPY_SAVE_USB) :
-		_createMcOptions(2, "Copy Save to Memory Card", CMD_COPY_SAVE_HDD);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_ZIP " Export save game to Zip", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createExtOptions(2, "Export Zip to Mass Storage", CMD_EXPORT_ZIP_USB);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Export single save files", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _getFileOptions(item->path, "*", CMD_EXPORT_DATA_FILE);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Import single save files", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _getFileOptions(item->path, "*", CMD_IMPORT_DATA_FILE);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " Hex Edit save game files", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _getFileOptions(item->path, "*", CMD_HEX_EDIT_FILE);
-	list_append(item->codes, cmd);
-}
-
-static option_entry_t* _getSaveTitleIDs(const char* title_id)
-{
-	option_value_t* optval;
-	option_entry_t* opt;
-	char tmp[16];
-	const char *ptr;
-	const char *tid = NULL;//get_game_title_ids(title_id);
-
-	if (!tid)
-		tid = title_id;
-
-	LOG("Adding TitleIDs=%s", tid);
-	opt = _initOptions(1);
-
-	ptr = tid;
-	while (*ptr++)
-	{
-		if ((*ptr == '/') || (*ptr == 0))
-		{
-			memset(tmp, 0, sizeof(tmp));
-			strncpy(tmp, tid, ptr - tid);
-			optval = malloc(sizeof(option_value_t));
-			asprintf(&optval->name, "%s", tmp);
-			asprintf(&optval->value, "%c", SFO_CHANGE_TITLE_ID);
-			list_append(opt[0].opts, optval);
-			tid = ptr+1;
-		}
-	}
-
-	return opt;
-}
-
-static void add_ps1_commands(save_entry_t* save)
-{
-	char path[256];
-	code_entry_t* cmd;
-/*
-	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " VMP Memory Cards " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
-	list_append(save->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " Resign Memory Card", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _getFileOptions(save->path, "*.VMP", CMD_RESIGN_VMP);
-	list_append(save->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Export Memory Card to .MCR", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _getFileOptions(save->path, "*.VMP", CMD_EXP_VMP2MCR);
-	list_append(save->codes, cmd);
-
-	snprintf(path, sizeof(path), PS1_SAVES_PATH_HDD "%s/", save->title_id);
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Import .MCR files to SCEVMC0.VMP", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _getFileOptions(path, "*.MCR", CMD_IMP_MCR2VMP0);
-	list_append(save->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Import .MCR files to SCEVMC1.VMP", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _getFileOptions(path, "*.MCR", CMD_IMP_MCR2VMP1);
-	list_append(save->codes, cmd);
-*/
-	return;
-}
-
-static void add_ps2_commands(save_entry_t* item)
-{
-	code_entry_t* cmd;
-
-	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Exports " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Export save to .PSU format", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createExtOptions(2, "Export .PSU to Storage", (item->flags & SAVE_FLAG_VMC) ? CMD_EXP_VMCSAVE : CMD_EXP_PS2SAVE);
-	cmd->options[0].id = FILE_TYPE_PSU;
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Export save to .PSV format", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createExtOptions(2, "Export .PSV to Storage", (item->flags & SAVE_FLAG_VMC) ? CMD_EXP_VMCSAVE : CMD_EXP_PS2SAVE);
-	cmd->options[0].id = FILE_TYPE_PSV;
-	list_append(item->codes, cmd);
-
-	if (item->flags & SAVE_FLAG_VMC)
-		return;
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Export save to .CBS format", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createExtOptions(2, "Export .CBS to Storage", CMD_EXP_PS2SAVE);
-	cmd->options[0].id = FILE_TYPE_CBS;
-	list_append(item->codes, cmd);
-
-	return;
-}
-
 option_entry_t* get_file_entries(const char* path, const char* mask)
 {
 	return _getFileOptions(path, mask, CMD_CODE_NULL);
@@ -374,23 +529,16 @@ option_entry_t* get_file_entries(const char* path, const char* mask)
  *	_count_count:	Pointer to int (set to the number of codes within the ncl)
  * Return:			Returns an array of code_entry, null if failed to load
  */
-int ReadCodes(save_entry_t * save)
+// Cheat patches from APOLLO_DATA_PATH "<title_id>.savepatch"
+static void _addPatchCodes(save_entry_t * save)
 {
 	code_entry_t * code;
 	char filePath[256];
 	char * buffer = NULL;
 
-	save->codes = list_alloc();
-	_addBackupCommands(save);
-
-	if (save->flags & SAVE_FLAG_PS1)
-		add_ps1_commands(save);
-	else
-		add_ps2_commands(save);
-
 	snprintf(filePath, sizeof(filePath), APOLLO_DATA_PATH "%s.savepatch", save->title_id);
 	if ((buffer = readTextFile(filePath, NULL)) == NULL)
-		goto skip_end;
+		return;
 
 	code = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Cheats " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);	
 	list_append(save->codes, code);
@@ -401,84 +549,45 @@ int ReadCodes(save_entry_t * save)
 	LOG("Loading BSD codes '%s'...", filePath);
 	load_patch_code_list(buffer, save->codes, &get_file_entries, save->path);
 	free (buffer);
-
-skip_end:
-	LOG("Loaded %ld codes", list_count(save->codes));
-
-	return list_count(save->codes);
 }
 
-static void add_vmc_import_saves(list_t* list, const char* path, const char* folder)
+// .DCI / .VMI saves in <storage>DC/SAVEDATA/, listed as import commands
+static void add_vmu_import_saves(list_t* list, const char* path)
 {
 	code_entry_t * cmd;
 	DIR *d;
 	struct dirent *dir;
-	char psvPath[256];
-	char data[64];
-	int type, toff;
+	char dcPath[256];
 
-	snprintf(psvPath, sizeof(psvPath), "%s%s", path, folder);
-	d = opendir(psvPath);
-
-	if (!d)
+	snprintf(dcPath, sizeof(dcPath), "%s%s", path, DC_SAVES_PATH);
+	if ((d = opendir(dcPath)) == NULL)
 		return;
 
 	while ((dir = readdir(d)) != NULL)
 	{
-		if (!S_ISREG(dir->d_type))
+		if (!endsWith(dir->d_name, ".DCI") && !endsWith(dir->d_name, ".VMI"))
 			continue;
 
-		if (endsWith(dir->d_name, ".PSV"))
-		{
-			toff = 0x80;
-			type = FILE_TYPE_PSV;
-		}
-		else if (endsWith(dir->d_name, ".PSU"))
-		{
-			toff = 0x40;
-			type = FILE_TYPE_PSU;
-		}
-		else continue;
-
-		snprintf(psvPath, sizeof(psvPath), "%s%s%s", path, folder, dir->d_name);
-		LOG("Reading %s...", psvPath);
-
-/*
-		FILE *fp = fopen(psvPath, "rb");
-		if (!fp) {
-			LOG("Unable to open '%s'", psvPath);
-			continue;
-		}
-
-		fseek(fp, toff, SEEK_SET);
-		fread(data, 1, sizeof(data), fp);
-		fclose(fp);
-*/
-
-		cmd = _createCmdCode(PATCH_COMMAND, psvPath, CMD_IMP_VMCSAVE);
-		cmd->file = strdup(psvPath);
-		cmd->codes[1] = type;
-		sprintf(cmd->name, "%s %s", CHAR_ICON_COPY, dir->d_name);
+		snprintf(dcPath, sizeof(dcPath), CHAR_ICON_COPY " Import %s", dir->d_name);
+		cmd = _createCmdCode(PATCH_COMMAND, dcPath, CMD_IMP_SAVE_MC);
+		asprintf(&cmd->file, "%s%s%s", path, DC_SAVES_PATH, dir->d_name);
 		list_append(list, cmd);
 
-		LOG("[%s] F(%X) name '%s'", cmd->file, cmd->flags, cmd->name+2);
+		LOG("[%s] name '%s'", cmd->file, cmd->name + 2);
 	}
 
 	closedir(d);
 }
 
-int ReadVmcCodes(save_entry_t * save)
+int ReadVmuCodes(save_entry_t * save)
 {
 	code_entry_t * cmd;
-	char filePath[256];
-	char * buffer = NULL;
 
-	save->codes = list_alloc();
-
+	// "Import Saves to VMU": what's on the storage device
 	if (save->type == FILE_TYPE_MENU)
 	{
-		add_vmc_import_saves(save->codes, save->path, PS2_SAVES_PATH_USB);
-		add_vmc_import_saves(save->codes, save->path, PS3_SAVES_PATH_USB);
+		save->codes = list_alloc();
+		add_vmu_import_saves(save->codes, save->path);
 
 		if (!list_count(save->codes))
 		{
@@ -486,32 +595,40 @@ int ReadVmcCodes(save_entry_t * save)
 			save->codes = NULL;
 			return 0;
 		}
-		list_bubbleSort(save->codes, &sortCodeList_Compare);
 
+		list_bubbleSort(save->codes, &sortCodeList_Compare);
 		return list_count(save->codes);
 	}
+
+	save->codes = list_alloc();
+
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " Apply Changes", CMD_RESIGN_SAVE);
+	list_append(save->codes, cmd);
 
 	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " View Save Details", CMD_VIEW_DETAILS);
 	list_append(save->codes, cmd);
 
-	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " File Backup " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Backup " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
 	list_append(save->codes, cmd);
 
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Copy save game to MemCard", CMD_CODE_NULL);
+	_addVmuCopyCommand(save->codes, CHAR_ICON_COPY " Copy save game to another VMU", "Copy to", CMD_COPY_SAVE_HDD, save->path);
+	_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .DCI format", "Export .DCI to", CMD_COPY_SAVE_USB, FILE_TYPE_DCI);
+	_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .VMI/.VMS format", "Export .VMI/.VMS to", CMD_COPY_SAVE_USB, FILE_TYPE_VMI);
+
+	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Tools " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+	list_append(save->codes, cmd);
+
+	// a VMU save is a single file: the only option is the save itself
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " Hex Edit save game file", CMD_CODE_NULL);
 	cmd->options_count = 1;
-	cmd->options = _createMcOptions(2, "Copy Save to Memory Card", CMD_COPY_SAVE_VMC);
-
-//	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Copy save game to Mass Storage", CMD_CODE_NULL);
-//	cmd->options_count = 1;
-//	cmd->options = _createExtOptions(2, "Copy Save to Mass Storage", CMD_COPY_SAVE_USB);
-
+	cmd->options = _initOptions(1);
+	list_append(cmd->options[0].opts, _newOption(save->dir_name, (char[]){CMD_HEX_EDIT_FILE}, 1));
 	list_append(save->codes, cmd);
 
-	if (save->flags & SAVE_FLAG_PS1)
-		add_ps1_commands(save);
-	else
-		add_ps2_commands(save);
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_WARN " Delete Save Game", CMD_DELETE_SAVE);
+	list_append(save->codes, cmd);
 
+	_addPatchCodes(save);
 	LOG("Loaded %ld codes", list_count(save->codes));
 
 	return list_count(save->codes);
@@ -530,21 +647,22 @@ int ReadVmcCodes(save_entry_t * save)
 int ReadOnlineSaves(save_entry_t * game)
 {
 	code_entry_t* item;
-	option_value_t* optval;
 	char path[256];
-	snprintf(path, sizeof(path), APOLLO_LOCAL_CACHE "%s.txt", game->title_id);
-
-	if (file_exists(path) == SUCCESS && strcmp(apollo_config.save_db, ONLINE_URL) == 0)
-	{
-		struct stat stats;
-		stat(path, &stats);
-		// re-download if file is +1 day old
-		if ((stats.st_mtime + ONLINE_CACHE_TIMEOUT) < time(NULL))
-			http_download(game->path, "saves.txt", path, 0);
-	}
+	if (game->path[0] == '/')
+		snprintf(path, sizeof(path), "%ssaves.txt", game->path);
 	else
 	{
-		if (!http_download(game->path, "saves.txt", path, 0))
+		snprintf(path, sizeof(path), APOLLO_LOCAL_CACHE "%s.txt", game->title_id);
+
+		if (file_exists(path) == SUCCESS && strcmp(apollo_config.save_db, ONLINE_URL) == 0)
+		{
+			struct stat stats;
+			stat(path, &stats);
+			// re-download if file is +1 day old
+			if ((stats.st_mtime + ONLINE_CACHE_TIMEOUT) < time(NULL))
+				http_download(game->path, "saves.txt", path, 0);
+		}
+		else if (!http_download(game->path, "saves.txt", path, 0))
 			return 0;
 	}
 
@@ -568,21 +686,16 @@ int ReadOnlineSaves(save_entry_t * game)
 		}
 		*ptr++ = 0;
 
-		if (content[12] == '=')
+		// "v12719.zip=(CRAZYTAXI_DC) description": zip names vary in length
+		const char* eq = strchr(content, '=');
+		if (eq && eq > content)
 		{
-			snprintf(path, sizeof(path), CHAR_ICON_ZIP " %s", content + 13);
+			snprintf(path, sizeof(path), CHAR_ICON_ZIP " %s", eq + 1);
 			item = _createCmdCode(PATCH_COMMAND, path, CMD_CODE_NULL);
-			asprintf(&item->file, "%.12s", content);
+			asprintf(&item->file, "%.*s", (int)(eq - content), content);
 
 			item->options_count = 1;
-			item->options = _createMcOptions(1, "Download to Mass Storage", CMD_DOWNLOAD_USB);
-			optval = list_get_item(item->options[0].opts, 0);
-			memcpy(optval->name + 26, "mass:", 5);
-			optval->value[1] = STORAGE_MASS;
-
-			optval = list_get_item(item->options[0].opts, 1);
-			memcpy(optval->name + 26, "host:", 5);
-			optval->value[1] = STORAGE_HOST;
+			item->options = _createDbSaveOptions();
 			list_append(game->codes, item);
 
 			LOG("[%s%s] %s", game->path, item->file, item->name + 1);
@@ -607,7 +720,6 @@ int ReadOnlineSaves(save_entry_t * game)
 list_t * ReadBackupList(const char* userPath)
 {
 	save_entry_t * item;
-	code_entry_t * cmd;
 	list_t *list = list_alloc();
 
 	item = _createSaveEntry(SAVE_FLAG_ZIP, CHAR_ICON_ZIP " Extract Archives (Zip, 7z)");
@@ -640,19 +752,7 @@ int ReadBackupCodes(save_entry_t * bup)
 		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " Local Web Server (full system access)", CMD_NET_WEBSERVER);
 		list_append(bup->codes, cmd);
 		return list_count(bup->codes);
-/*
-	case FILE_TYPE_PRX:
-		bup->codes = list_alloc();
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " Install Save-game Key Dumper plugin", CMD_SETUP_PLUGIN);
-		cmd->codes[1] = 1;
-		list_append(bup->codes, cmd);
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_LOCK " Disable Save-game Key Dumper plugin", CMD_SETUP_PLUGIN);
-		cmd->codes[1] = 0;
-		list_append(bup->codes, cmd);
-
-		return list_count(bup->codes);
-*/
 	default:
 		return 0;
 	}
@@ -829,293 +929,134 @@ int sortSaveList_Compare_TitleID(const void* a, const void* b)
 }
 
 /*
-static void read_usb_encrypted_saves(const char* userPath, list_t *list, uint64_t account)
+ * External Saves: on the SD card and the PC (dcload)
+ *   <root>DC/SAVEDATA/   .DCI and .VMI (+ .VMS) saves, to import into a VMU
+ *   <root>DC/VMU/        VMU images (.BIN, .VMU, .DCM), opened like a VMU
+ */
+static const char* ext_roots[] = {USB_PATH, HOST_PATH, NULL};
+
+// Title and VMU file name of a .DCI / .VMI. A .VMI carries its own description,
+// so only the small .VMI is read; a .DCI holds the save, header included.
+static int dc_ext_info(const char* path, int type, char* title, size_t tsize, char* vmu_name, size_t nsize)
 {
-	DIR *d, *d2;
-	struct dirent *dir, *dir2;
-	save_entry_t *item;
-	char savePath[256];
+	uint8_t *buf, *data;
+	size_t len, dlen;
+	vmu_dirent_t ent;
+	vms_header_t vms;
+	vmi_info_t info;
+	int ok = 0;
 
-	d = opendir(userPath);
+	if (read_buffer(path, &buf, &len) < 0)
+		return 0;
 
-	if (!d)
-		return;
-
-	while ((dir = readdir(d)) != NULL)
+	if (type == FILE_TYPE_VMI && vmi_decode(buf, len, &ent, &info) == 0)
 	{
-		if (S_ISDIR(dir->d_type) || strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
-			continue;
-
-		snprintf(savePath, sizeof(savePath), "%s%s", userPath, dir->d_name);
-		d2 = opendir(savePath);
-
-		if (!d2)
-			continue;
-
-		LOG("Reading %s...", savePath);
-
-		while ((dir2 = readdir(d2)) != NULL)
-		{
-			if (!S_ISDIR(dir2->d_stat.st_mode) || endsWith(dir2->d_name, ".bin"))
-				continue;
-
-			snprintf(savePath, sizeof(savePath), "%s%s/%s.bin", userPath, dir->d_name, dir2->d_name);
-			if (file_exists(savePath) != SUCCESS)
-				continue;
-
-			snprintf(savePath, sizeof(savePath), "(Encrypted) %s/%s", dir->d_name, dir2->d_name);
-			item = _createSaveEntry(SAVE_FLAG_DC | 0, savePath);
-			item->type = FILE_TYPE_PSV;
-
-			asprintf(&item->path, "%s%s/", userPath, dir->d_name);
-			asprintf(&item->title_id, "%.9s", dir->d_name);
-			item->dir_name = strdup(dir2->d_name);
-
-//			if (apollo_config.account_id == account)
-//				item->flags |= SAVE_FLAG_OWNER;
-
-			snprintf(savePath, sizeof(savePath), "%s%s/%s", userPath, dir->d_name, dir2->d_name);
-			
-			uint64_t size = 0;
-			get_file_size(savePath, &size);
-//			item->blocks = size / ORBIS_SAVE_DATA_BLOCK_SIZE;
-
-			LOG("[%s] F(%X) name '%s'", item->title_id, item->flags, item->name);
-			list_append(list, item);
-
-		}
-		closedir(d2);
+		dc_copy_text(title, tsize, info.description, sizeof(info.description) - 1);
+		ok = 1;
 	}
+	else if (type == FILE_TYPE_DCI && dci_decode(buf, len, &ent, &data, &dlen) == 0)
+	{
+		title[0] = 0;
+		if (vms_parse(data, dlen, vms_header_offset(&ent), &vms) == 0)
+		{
+			dc_copy_text(title, tsize, vms.desc_dc, 32);
+			if (!title[0])
+				dc_copy_text(title, tsize, vms.desc_vms, 16);
+		}
+		free(data);
+		ok = 1;
+	}
+	free(buf);
 
-	closedir(d);
+	if (ok)
+		snprintf(vmu_name, nsize, "%s", ent.filename);
+
+	return ok;
 }
-*/
 
-static void read_ps2_savegames(const char* userPath, list_t *list, int flags)
+static void read_dc_ext_saves(const char* root, list_t* list)
 {
-/*
-	DIR *d;
-	mcIcon iconsys;
-	struct dirent *dir;
-	save_entry_t *item;
-	char sysPath[256];
+	char path[256], title[DC_TEXT_SIZE(32)], vmu_name[VMU_NAME_LEN + 1];
+	struct dirent* e;
+	save_entry_t* item;
+	DIR* d;
 
-	d = opendir(userPath);
-	if (!d)
+	snprintf(path, sizeof(path), "%s" DC_SAVES_PATH, root);
+	if ((d = opendir(path)) == NULL)
 		return;
 
-	while ((dir = readdir(d)) != NULL)
+	while ((e = readdir(d)) != NULL)
 	{
-		if (!S_ISDIR(dir->d_type) || strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
+		int type = endsWith(e->d_name, ".DCI") ? FILE_TYPE_DCI : endsWith(e->d_name, ".VMI") ? FILE_TYPE_VMI : 0;
+
+		if (!type)
 			continue;
 
-		snprintf(sysPath, sizeof(sysPath), "%s%s/icon.sys", userPath, dir->d_name);
-
-		LOG("Reading %s...", sysPath);
-		if (read_file(sysPath, (uint8_t*) &iconsys, sizeof(mcIcon)) < 0) {
-			LOG("Unable to read from '%s'", sysPath);
-			continue;
-		}
-
-		if (iconsys.nlOffset)
+		snprintf(path, sizeof(path), "%s" DC_SAVES_PATH "%s", root, e->d_name);
+		if (!dc_ext_info(path, type, title, sizeof(title), vmu_name, sizeof(vmu_name)))
 		{
-			iconsys.nlOffset /= 2;
-			memmove(&iconsys.title[iconsys.nlOffset+1], &iconsys.title[iconsys.nlOffset], sizeof(iconsys.title) - iconsys.nlOffset*2);
-			iconsys.title[iconsys.nlOffset] = 0x5081;
+			LOG("Skipping '%s': not a valid Dreamcast save", path);
+			continue;
 		}
-		sjis2ascii((uint8_t*) iconsys.title);
-		item = _createSaveEntry(SAVE_FLAG_PS2 | flags, (char*) iconsys.title);
-		item->type = FILE_TYPE_PS2;
-		item->icon = strdup(iconsys.copy);
-		item->dir_name = strdup(dir->d_name);
-		asprintf(&item->title_id, "%.10s", dir->d_name+2);
-		asprintf(&item->path, "%s%s/", userPath, dir->d_name);
 
-		if(item->title_id[4] == '-')
-			memmove(&item->title_id[4], &item->title_id[5], 6);
+		item = _createSaveEntry(SAVE_FLAG_DC | SAVE_FLAG_PACKED, title[0] ? title : e->d_name);
+		item->type = type;
+		item->path = strdup(path);
+		item->dir_name = strdup(e->d_name);
+		item->title_id = strdup(vmu_name);
 
-		LOG("[%s] F(%X) name '%s'", item->title_id, item->flags, item->name);
+		LOG("[%s] F(%X) %s '%s'", item->title_id, item->flags, item->path, item->name);
 		list_append(list, item);
 	}
 
 	closedir(d);
-*/
 }
 
-static void read_usb_savegames(const char* userPath, list_t *list)
+static void read_dc_vmu_images(const char* root, list_t* list)
 {
 	char path[256];
-
-	snprintf(path, sizeof(path), "%s%s", userPath, PS2_SAVES_PATH_USB);
-	read_ps2_savegames(path, list, 0);
-}
-
-static int set_psx_import_codes(save_entry_t* item)
-{
-	code_entry_t* cmd;
-	item->codes = list_alloc();
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " View Save Details", CMD_VIEW_DETAILS);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Import to Memory Card", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createMcOptions(2, "Import to MemCard", CMD_IMP_SAVE_MC);
-	list_append(item->codes, cmd);
-
-	return list_count(item->codes);
-}
-
-static void read_psx_savegames(const char* userPath, const char* folder, list_t *list)
-{
-	DIR *d;
-	struct dirent *dir;
-	save_entry_t *item;
-	char psvPath[256];
-	char data[64];
-	int type, toff;
-
-	snprintf(psvPath, sizeof(psvPath), "%s%s", userPath, folder);
-	d = opendir(psvPath);
-
-	if (!d)
-		return;
-
-	while ((dir = readdir(d)) != NULL)
-	{
-		if (!S_ISREG(dir->d_type))
-			continue;
-
-		if (endsWith(dir->d_name, ".PSX"))
-		{
-			toff = 0;
-			type = FILE_TYPE_PSX;
-		}
-		else if (endsWith(dir->d_name, ".MCS"))
-		{
-			toff = 0x0A;
-			type = FILE_TYPE_MCS;
-		}
-		else if (endsWith(dir->d_name, ".MAX"))
-		{
-			toff = 0x10;
-			type = FILE_TYPE_MAX;
-		}
-		else if (endsWith(dir->d_name, ".CBS"))
-		{
-			toff = 0x14;
-			type = FILE_TYPE_CBS;
-		}
-		else if (endsWith(dir->d_name, ".PSU"))
-		{
-			toff = 0x40;
-			type = FILE_TYPE_PSU;
-		}
-		else if (endsWith(dir->d_name, ".PSV"))
-		{
-			toff = 0x80;
-			type = FILE_TYPE_PSV;
-		}
-		else if (endsWith(dir->d_name, ".XPS") || endsWith(dir->d_name, ".SPS"))
-		{
-			toff = 0x04;
-			type = FILE_TYPE_XPS;
-		}
-		else
-			continue;
-
-		snprintf(psvPath, sizeof(psvPath), "%s%s%s", userPath, folder, dir->d_name);
-		LOG("Reading %s...", psvPath);
-
-		FILE *fp = fopen(psvPath, "rb");
-		if (!fp) {
-			LOG("Unable to open '%s'", psvPath);
-			continue;
-		}
-
-		fseek(fp, toff, SEEK_SET);
-		fread(data, 1, sizeof(data), fp);
-		fclose(fp);
-
-		item = _createSaveEntry(SAVE_FLAG_PACKED, dir->d_name);
-		set_psx_import_codes(item);
-
-		item->flags |= (type == FILE_TYPE_PSX || type == FILE_TYPE_MCS) ? SAVE_FLAG_PS1 : SAVE_FLAG_PS2;
-		item->type = type;
-		item->path = strdup(psvPath);
-		item->dir_name = strdup(data);
-		asprintf(&item->title_id, "%.10s", data+2);
-
-		if(item->title_id[4] == '-')
-			memmove(&item->title_id[4], &item->title_id[5], 6);
-
-		LOG("[%s] F(%X) name '%s'", item->title_id, item->flags, item->name);
-		list_append(list, item);
-	}
-
-	closedir(d);
-}
-
-static void read_vmc_files(const char* userPath, const char* folder, list_t *list)
-{
-	DIR *d;
-	struct dirent *dir;
-	save_entry_t *item;
-	char psvPath[256];
+	struct dirent* e;
+	save_entry_t* item;
 	uint64_t size;
+	DIR* d;
 
-	snprintf(psvPath, sizeof(psvPath), "%s%s", userPath, folder);
-	d = opendir(psvPath);
-
-	if (!d)
+	snprintf(path, sizeof(path), "%s" DC_VMU_PATH, root);
+	if ((d = opendir(path)) == NULL)
 		return;
 
-	while ((dir = readdir(d)) != NULL)
+	while ((e = readdir(d)) != NULL)
 	{
-		if (!S_ISREG(dir->d_type) || !(endsWith(dir->d_name, ".VMC") || endsWith(dir->d_name, ".VM2") || endsWith(dir->d_name, ".BIN") || endsWith(dir->d_name, ".PS2")))
+		if (!vmucard_is_image_name(e->d_name))
 			continue;
 
-		snprintf(psvPath, sizeof(psvPath), "%s%s%s", userPath, folder, dir->d_name);
-		get_file_size(psvPath, &size);
-
-		LOG("Adding %s...", psvPath);
-		if (size % 0x840000 != 0 && size % 0x800000 != 0)
+		snprintf(path, sizeof(path), "%s" DC_VMU_PATH "%s", root, e->d_name);
+		if (get_file_size(path, &size) != SUCCESS || size != VMUDEV_IMAGE_SIZE)
 			continue;
 
-		item = _createSaveEntry(SAVE_FLAG_PS2 | SAVE_FLAG_VMC, dir->d_name);
+		item = _createSaveEntry(SAVE_FLAG_DC | SAVE_FLAG_VMC, e->d_name);
 		item->type = FILE_TYPE_VMC;
-		item->path = strdup(psvPath);
-		item->title_id = strdup("VMC");
-		asprintf(&item->dir_name, "%s%s", userPath, folder);
+		item->path = strdup(path);
+		item->title_id = strdup(endsWith(e->d_name, ".DCM") ? "DCM" : "VMU image");
 
-		LOG("[%s] F(%X) name '%s'", item->title_id, item->flags, item->name);
+		LOG("[%s] VMU image %s", item->title_id, item->path);
 		list_append(list, item);
 	}
 
 	closedir(d);
 }
 
-/*
- * Function:		ReadUserList()
- * File:			saves.c
- * Project:			Apollo PS3
- * Description:		Reads the entire userlist folder into a game_entry array
- * Arguments:
- *	gmc:			Set as the number of games read
- * Return:			Pointer to array of game_entry, null if failed
- */
 list_t * ReadUsbList(const char* userPath)
 {
 	save_entry_t *item;
-	code_entry_t *cmd;
 	list_t *list;
 
-	if (dir_exists(userPath) != SUCCESS)
+	if (!userPath[0])
 		return NULL;
 
 	list = list_alloc();
 
-	item = _createSaveEntry(SAVE_FLAG_PS2, CHAR_ICON_COPY " Bulk Save Management");
+	// Bulk management: import external saves into a VMU
+	item = _createSaveEntry(SAVE_FLAG_DC, CHAR_ICON_COPY " Bulk Save Management");
 	item->type = FILE_TYPE_MENU;
 	item->codes = list_alloc();
 	item->path = strdup(userPath);
@@ -1123,73 +1064,159 @@ list_t * ReadUsbList(const char* userPath)
 	item->dir_name = malloc(sizeof(void**));
 	((void**)item->dir_name)[0] = list;
 
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Copy selected Saves to Memory Card", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createMcOptions(2, "Copy Saves to MemCard", CMD_COPY_SAVES_HDD);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Copy all Saves to Memory Card", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createMcOptions(2, "Copy Saves to MemCard", CMD_COPY_ALL_SAVES_HDD);
-	list_append(item->codes, cmd);
+	_addVmuCopyCommand(item->codes, CHAR_ICON_COPY " Copy selected Saves to a VMU", "Copy to", CMD_COPY_SAVES_HDD, NULL);
+	_addVmuCopyCommand(item->codes, CHAR_ICON_COPY " Copy all Saves to a VMU", "Copy to", CMD_COPY_ALL_SAVES_HDD, NULL);
 
 //	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " Start local Web Server", CMD_SAVE_WEBSERVER);
 //	list_append(item->codes, cmd);
-	list_append(list, item);
+	if (list_count(item->codes))
+		list_append(list, item);
+	else
+	{
+		list_free(item->codes);
+		free(item->path);
+		free(item->dir_name);
+		free(item->name);
+		free(item);
+	}
 
-	read_usb_savegames(userPath, list);
-	read_vmc_files(userPath, IMP_OPLVMC_PATH_USB, list);
-	read_vmc_files(userPath, IMP_PS2VMC_PATH_USB, list);
-	read_psx_savegames(userPath, PS2_SAVES_PATH_USB, list);
-	read_psx_savegames(userPath, PS3_SAVES_PATH_USB, list);
+	for (int i = 0; ext_roots[i]; i++)
+	{
+		if (dir_exists(ext_roots[i]) != SUCCESS)
+			continue;
+
+		read_dc_ext_saves(ext_roots[i], list);
+		read_dc_vmu_images(ext_roots[i], list);
+	}
 
 	return list;
 }
 
+int ReadExtCodes(save_entry_t * save)
+{
+	code_entry_t * cmd;
+
+	save->codes = list_alloc();
+
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " View Save Details", CMD_VIEW_DETAILS);
+	list_append(save->codes, cmd);
+
+	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Import " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+	list_append(save->codes, cmd);
+
+	_addVmuCopyCommand(save->codes, CHAR_ICON_COPY " Copy save game to a VMU", "Copy to", CMD_COPY_SAVE_HDD, NULL);
+
+	LOG("Loaded %ld codes", list_count(save->codes));
+	return list_count(save->codes);
+}
+
+// External .DCI / .VMI save: its first icon frame as 32x32 RGBA (malloc'd), or NULL
+uint8_t* get_dc_file_icon(const char* path)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+	uint8_t *data, *icon = NULL;
+	vmu_dirent_t ent;
+	vms_header_t vms;
+	size_t len;
+
+	if (!dc_save_file_read(path, raw, &data, &len))
+		return NULL;
+
+	vmu_dirent_decode(raw, &ent);
+	if (vms_parse(data, len, vms_header_offset(&ent), &vms) == 0)
+		icon = vms_icon_rgba(&vms, 0);
+
+	free(data);
+	return icon;
+}
+
 list_t * ReadUserList(const char* userPath)
 {
+	vmu_dirent_t ent;
+	vmudev_file_t *files;
+	int count;
+	char title[DC_TEXT_SIZE(32)], patch_id[32];
+	char *titleid_db;
 	save_entry_t *item;
 	code_entry_t *cmd;
 	list_t *list;
 
-	if (dir_exists(userPath) != SUCCESS)
-		return NULL;
+	// a VMU plugged into a controller, or a VMU image file (see vmu_card.h)
+	int device = vmucard_is_device(userPath);
 
+	if (!vmucard_open(userPath) || !vmucard_scan(userPath, &files, &count))
+	{
+		LOG("No VMU found at '%s'", userPath);
+		return NULL;
+	}
+
+	LOG("Reading %d files from %s...", count, userPath);
 	list = list_alloc();
 
-	item = _createSaveEntry(SAVE_FLAG_PS2, CHAR_ICON_COPY " Bulk Save Management");
+	// Bulk management: copy to another VMU, export to storage
+	item = _createSaveEntry(SAVE_FLAG_DC, CHAR_ICON_COPY " Bulk Save Management");
 	item->type = FILE_TYPE_MENU;
 	item->codes = list_alloc();
 	item->path = strdup(userPath);
+	if (device)
+		asprintf(&item->title_id, "VMU %.2s", userPath + strlen(VMU_PATH));
+	else
+		item->title_id = strdup(vmucard_is_dcm(userPath) ? "DCM" : "VMU image");
 	//bulk management hack
 	item->dir_name = malloc(sizeof(void**));
 	((void**)item->dir_name)[0] = list;
 
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Copy selected Saves to Backup Storage", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createExtOptions(2, "Copy Saves to Backup Storage", CMD_COPY_SAVES_USB);
-	list_append(item->codes, cmd);
+	_addVmuCopyCommand(item->codes, device ? CHAR_ICON_COPY " Copy selected Saves to another VMU" : CHAR_ICON_COPY " Copy selected Saves to a VMU", "Copy to", CMD_COPY_SAVES_HDD, userPath);
+	_addVmuCopyCommand(item->codes, device ? CHAR_ICON_COPY " Copy all Saves to another VMU" : CHAR_ICON_COPY " Copy all Saves to a VMU", "Copy to", CMD_COPY_ALL_SAVES_HDD, userPath);
+	_addStorageCommand(item->codes, CHAR_ICON_COPY " Export selected Saves to .DCI", "Export .DCI to", CMD_COPY_SAVES_USB, FILE_TYPE_DCI);
+	_addStorageCommand(item->codes, CHAR_ICON_COPY " Export all Saves to .DCI", "Export .DCI to", CMD_COPY_ALL_SAVES_USB, FILE_TYPE_DCI);
 
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Copy all Saves to Backup Storage", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createExtOptions(2, "Copy Saves to Backup Storage", CMD_COPY_ALL_SAVES_USB);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " .PSU Export selected Saves to Backup Storage", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createExtOptions(2, "Copy Saves to Backup Storage", CMD_EXPORT_SAVES);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " .PSU Export All Saves to Backup Storage", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createExtOptions(2, "Copy Saves to Backup Storage", CMD_EXPORT_ALL_SAVES);
-	list_append(item->codes, cmd);
-
-//	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " Start local Web Server", CMD_SAVE_WEBSERVER);
-//	list_append(item->codes, cmd);
+	if (device)
+	{
+		cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Memory Card Backup " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+		list_append(item->codes, cmd);
+		_addStorageCommand(item->codes, CHAR_ICON_COPY " Dump full VMU image (.BIN)", "Dump VMU image to", CMD_EXP_VMU_IMAGE, 0);
+	}
 	list_append(list, item);
 
-	read_ps2_savegames(userPath, list, SAVE_FLAG_MEMCARD);
+	// Import .DCI / .VMI saves from each storage device; dir_name is the target VMU
+	const char* import_src[] = {USB_PATH, HOST_PATH};
+	for (int i = 0; i < 2; i++)
+	{
+		item = _createSaveEntry(SAVE_FLAG_DC, device ? CHAR_ICON_COPY " Import Saves to VMU" : CHAR_ICON_COPY " Import Saves to VMU image");
+		item->type = FILE_TYPE_MENU;
+		item->path = strdup(import_src[i]);
+		item->dir_name = strdup(userPath);
+		asprintf(&item->title_id, "%s", import_src[i]);
+		list_append(list, item);
+	}
+
+	titleid_db = readTextFile(APOLLO_DATA_PATH DC_TITLEID_FILE, NULL);
+
+	for (int i = 0; i < count; i++)
+	{
+		vmu_dirent_decode(files[i].dirent, &ent);
+
+		if (!files[i].has_header || !dc_header_title(files[i].header, title, sizeof(title)))
+			snprintf(title, sizeof(title), "%s", ent.filename);
+
+		dc_get_patch_id(titleid_db, ent.filename, patch_id, sizeof(patch_id));
+
+		item = _createSaveEntry(SAVE_FLAG_DC | SAVE_FLAG_MEMCARD | (device ? 0 : SAVE_FLAG_VMC), title);
+		item->type = FILE_TYPE_VMS;
+		item->path = strdup(userPath);
+		item->dir_name = strdup(ent.filename);
+		item->title_id = strdup(patch_id);
+
+		if (ent.copyprotect == VMU_COPY_PROTECTED)
+			item->flags |= SAVE_FLAG_LOCKED;
+
+		LOG("[%s] F(%X) %d blocks, name '%s'", item->dir_name, item->flags, ent.filesize, item->name);
+		list_append(list, item);
+	}
+
+	free(titleid_db);
+	free(files);
 
 	return list;
 }
@@ -1206,27 +1233,32 @@ list_t * ReadUserList(const char* userPath)
 static void _ReadOnlineListEx(const char* urlPath, uint16_t flag, list_t *list)
 {
 	save_entry_t *item;
-	char path[256];
+	char path[256 + sizeof("games.txt")];
 
-	snprintf(path, sizeof(path), APOLLO_LOCAL_CACHE "%04X_games.txt", flag);
-
-	if (file_exists(path) == SUCCESS && strcmp(apollo_config.save_db, ONLINE_URL) == 0)
-	{
-		struct stat stats;
-		stat(path, &stats);
-		// re-download if file is +1 day old
-		if ((stats.st_mtime + ONLINE_CACHE_TIMEOUT) < time(NULL))
-			http_download(urlPath, "games.txt", path, 0);
-	}
+	// a local Saves DB (disc, SD, PC) is read in place; an online one goes through the cache
+	if (urlPath[0] == '/')
+		snprintf(path, sizeof(path), "%sgames.txt", urlPath);
 	else
 	{
-		if (!http_download(urlPath, "games.txt", path, 0))
+		snprintf(path, sizeof(path), APOLLO_LOCAL_CACHE "%04X_games.txt", flag);
+
+		if (file_exists(path) == SUCCESS && strcmp(apollo_config.save_db, ONLINE_URL) == 0)
+		{
+			struct stat stats;
+			stat(path, &stats);
+			// re-download if file is +1 day old
+			if ((stats.st_mtime + ONLINE_CACHE_TIMEOUT) < time(NULL))
+				http_download(urlPath, "games.txt", path, 0);
+		}
+		else if (!http_download(urlPath, "games.txt", path, 0))
 			return;
 	}
-	
+
 	long fsize;
 	char *data = readTextFile(path, &fsize);
-	
+	if (!data)
+		return;
+
 	char *ptr = data;
 	char *end = data + fsize;
 
@@ -1269,13 +1301,9 @@ list_t * ReadOnlineList(const char* urlPath)
 	char url[256];
 	list_t *list = list_alloc();
 
-	// PSV save-games (Zip folder)
-	snprintf(url, sizeof(url), "%s" "PS1/", urlPath);
-	_ReadOnlineListEx(url, SAVE_FLAG_PS1, list);
-
-	// PS2 save-games (Zip folder)
-	snprintf(url, sizeof(url), "%sPS2/", urlPath);
-	_ReadOnlineListEx(url, SAVE_FLAG_PS2, list);
+	// DC save-games (Zip VMI/VMS): a local DB path already points at the DC folder
+	snprintf(url, sizeof(url), (urlPath[0] == '/') ? "%s" : "%sDC/", urlPath);
+	_ReadOnlineListEx(url, SAVE_FLAG_DC, list);
 
 	if (!list_count(list))
 	{
@@ -1286,115 +1314,66 @@ list_t * ReadOnlineList(const char* urlPath)
 	return list;
 }
 
-list_t * ReadVmcList(const char* userPath)
-{
-/*
-	char filePath[256];
-	save_entry_t *item;
-	code_entry_t *cmd;
-	list_t *list;
-	mcIcon iconsys;
-	int r, dd, fd;
-
-	r = mcio_vmcInit(userPath);
-	if (r < 0)
-	{
-		LOG("Error: no PS2 Memory Card detected! (%d)", r);
-		return NULL;
-	}
-
-	list = list_alloc();
-
-	item = _createSaveEntry(SAVE_FLAG_PS2, CHAR_ICON_COPY " Bulk Save Management");
-	item->type = FILE_TYPE_MENU;
-	item->path = strdup(userPath);
-	item->codes = list_alloc();
-	//bulk management hack
-	item->dir_name = malloc(sizeof(void**));
-	((void**)item->dir_name)[0] = list;
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Copy selected Saves to Memory Card", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createMcOptions(2, "Copy Saves to MemCard", CMD_COPY_SAVES_VMC);
-	list_append(item->codes, cmd);
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Copy all Saves to Memory Card", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createMcOptions(2, "Copy Saves to MemCard", CMD_COPY_ALL_SAVES_VMC);
-	list_append(item->codes, cmd);
-
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Export selected Saves to Backup Storage", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createExtOptions(2, "Copy Saves to Backup Storage", CMD_EXP_SAVES_VMC);
-	list_append(item->codes, cmd);
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " Export all Saves to Backup Storage", CMD_CODE_NULL);
-	cmd->options_count = 1;
-	cmd->options = _createExtOptions(2, "Copy Saves to Backup Storage", CMD_EXP_ALL_SAVES_VMC);
-	list_append(item->codes, cmd);
-	list_append(list, item);
-
-	item = _createSaveEntry(SAVE_FLAG_PS2, CHAR_ICON_COPY " Import Saves to Virtual Card");
-	item->path = strdup(userPath);
-	strchr(item->path, '/')[1] = 0;
-	asprintf(&item->title_id, " %s", item->path);
-	item->type = FILE_TYPE_MENU;
-	list_append(list, item);
-
-	dd = mcio_mcDopen("/");
-	if (dd >= 0)
-	{
-		struct io_dirent dirent;
-
-		do {
-			r = mcio_mcDread(dd, &dirent);
-			if ((r) && (strcmp(dirent.name, ".")) && (strcmp(dirent.name, "..")))
-			{
-				snprintf(filePath, sizeof(filePath), "%s/icon.sys", dirent.name);
-				LOG("Reading %s...", filePath);
-
-				fd = mcio_mcOpen(filePath, sceMcFileAttrReadable | sceMcFileAttrFile);
-				if (fd < 0) {
-					LOG("Unable to read from '%s'", filePath);
-					continue;
-				}
-
-				r = mcio_mcRead(fd, &iconsys, sizeof(mcIcon));
-				mcio_mcClose(fd);
-
-				if (r != sizeof(mcIcon))
-					continue;
-
-				if (iconsys.nlOffset)
-				{
-					iconsys.nlOffset /= 2;
-					memmove(&iconsys.title[iconsys.nlOffset+1], &iconsys.title[iconsys.nlOffset], sizeof(iconsys.title) - iconsys.nlOffset*2);
-					iconsys.title[iconsys.nlOffset] = 0x5081;
-				}
-				sjis2ascii((uint8_t*) iconsys.title);
-				item = _createSaveEntry(SAVE_FLAG_PS2 | SAVE_FLAG_VMC, (char*) iconsys.title);
-				item->type = FILE_TYPE_PS2;
-				item->icon = strdup(iconsys.copy);
-				item->dir_name = strdup(dirent.name);
-				asprintf(&item->title_id, "%.10s", dirent.name+2);
-				asprintf(&item->path, "%s\n%s/", userPath, dirent.name);
-
-				if(item->title_id[4] == '-')
-					memmove(&item->title_id[4], &item->title_id[5], 6);
-
-				LOG("[%s] F(%X) name '%s'", item->title_id, item->flags, item->name);
-				list_append(list, item);
-			}
-		} while (r);
-
-		mcio_mcDclose(dd);
-	}
-
-	return list;
-*/
-return NULL;
-}
-
 int get_save_details(const save_entry_t* save, char **details)
 {
+	// a save on a VMU / in a VMU image, or an external .DCI / .VMI file
+	if (save->type == FILE_TYPE_VMS || save->type == FILE_TYPE_DCI || save->type == FILE_TYPE_VMI)
+	{
+		uint8_t raw[VMUDEV_DIRENT_SIZE];
+		uint8_t *data;
+		size_t len;
+		vmu_dirent_t ent;
+		vms_header_t vms;
+		char desc_dc[DC_TEXT_SIZE(32)] = "", desc_vms[DC_TEXT_SIZE(16)] = "", app_id[DC_TEXT_SIZE(16)] = "", crc[32] = "n/a";
+		int icons = 0;
+
+		if (save->type == FILE_TYPE_VMS ? !vmucard_read(save->path, save->dir_name, raw, &data, &len) :
+			!dc_save_file_read(save->path, raw, &data, &len))
+			return 0;
+
+		vmu_dirent_decode(raw, &ent);
+		if (vms_parse(data, len, vms_header_offset(&ent), &vms) == 0)
+		{
+			int calc = vms_calc_crc(&vms);
+
+			dc_copy_text(desc_dc, sizeof(desc_dc), vms.desc_dc, 32);
+			dc_copy_text(desc_vms, sizeof(desc_vms), vms.desc_vms, 16);
+			dc_copy_text(app_id, sizeof(app_id), vms.app_id, 16);
+			icons = vms.icons;
+			snprintf(crc, sizeof(crc), "%04X (%s)", vms.crc, (calc == vms.crc) ? "OK" : "mismatch");
+		}
+		free(data);
+
+		asprintf(details, "%s%s\n----- Dreamcast VMU Save -----\n"
+			"File: %s\n"
+			"Title: %s\n"
+			"VMU Desc: %s\n"
+			"Created by: %s\n"
+			"Type: %s\n"
+			"Size: %d blocks\n"
+			"Date: %02d%02d-%02d-%02d %02d:%02d:%02d\n"
+			"Icons: %d\n"
+			"CRC: %s\n"
+			"Copy Protected: %s\n"
+			"Patch ID: %s\n",
+			save->path, (save->type == FILE_TYPE_VMS) ? save->dir_name : "",
+			ent.filename,
+			desc_dc,
+			desc_vms,
+			app_id,
+			(ent.filetype == VMU_FILE_GAME) ? "Mini-game" : "Data",
+			ent.filesize,
+			vmu_bcd_to_dec(ent.timestamp.cent), vmu_bcd_to_dec(ent.timestamp.year), vmu_bcd_to_dec(ent.timestamp.month),
+			vmu_bcd_to_dec(ent.timestamp.day), vmu_bcd_to_dec(ent.timestamp.hour), vmu_bcd_to_dec(ent.timestamp.min),
+			vmu_bcd_to_dec(ent.timestamp.sec),
+			icons,
+			crc,
+			(ent.copyprotect == VMU_COPY_PROTECTED) ? "Yes" : "No",
+			save->title_id);
+
+		return 1;
+	}
+
 	if (save->flags & SAVE_FLAG_PACKED)
 	{
 		asprintf(details, "%s\n----- Packed PS2 Save -----\n"

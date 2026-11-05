@@ -5,14 +5,20 @@
 #define APOLLO_PATH				"ms0:/APOLLO/"
 #define APOLLO_APP_PATH			"mass:/APOLLO/"
 #define APOLLO_USER_PATH		USB_PATH "PS2/EXPORT/"
-#define APOLLO_DATA_PATH		APOLLO_APP_PATH "DATA/"
+#define APOLLO_DATA_PATH		"/cd/APOLLO/DATA/"      // read-only app data on the disc: dctitleid.txt, *.savepatch
 #define APOLLO_LOCAL_CACHE		APOLLO_APP_PATH "CACHE/"
 #define APOLLO_UPDATE_URL		"https://api.github.com/repos/bucanero/apollo-psp/releases/latest"
 
 #define MAX_USB_DEVICES         5
+#define MAX_VMU_DEVICES         8           // 4 maple ports x 2 expansion slots
+#define VMU_PATH                "/vmu/"     // KOS fs_vmu mount, e.g. "/vmu/a1/"
+#define DC_TITLEID_FILE         "dctitleid.txt"
 #define MC0_PATH                "mc0:/"
 #define MC1_PATH                "mc1:/"
-#define USB_PATH                "mass:/"
+#define USB_PATH                "/sd/"      // SD card adapter (FAT)
+#define HOST_PATH               "/pc/"      // PC through dcload-ip / dcload-serial
+#define DC_SAVES_PATH           "DC/SAVEDATA/"
+#define DC_VMU_PATH             "DC/VMU/"   // full VMU images, as apollo-ps3 reads them
 #define USER_PATH_USB           "PS2/SAVEDATA/"
 
 #define PS1_SAVES_PATH_USB      "PS1/SAVEDATA/"
@@ -31,6 +37,8 @@
 #define IMP_OPLVMC_PATH_USB     "VMC/"
 
 #define ONLINE_URL              "https://bucanero.github.io/apollo-saves/"
+#define SAVEDB_PATH             "SAVEDB/DC/"        // offline Saves DB on the disc (or /sd/, /pc/)
+#define SAVEDB_TMP_PATH         "/ram/"             // where a DB save is unzipped before importing (no subfolders: the RAM disk has no mkdir)
 #define ONLINE_PATCH_URL        "https://bucanero.github.io/apollo-patches/PS2/"
 #define ONLINE_CACHE_TIMEOUT    24*3600     // 1-day local cache
 
@@ -42,6 +50,7 @@ enum storage_enum
     STORAGE_MC1,
     STORAGE_MASS,
     STORAGE_HOST,
+    STORAGE_VMU,
 };
 
 enum save_sort_enum
@@ -61,45 +70,26 @@ enum cmd_code_enum
     CMD_DOWNLOAD_HDD,
     CMD_COPY_SAVE_USB,
     CMD_COPY_SAVE_HDD,
-    CMD_COPY_SAVE_VMC,
-    CMD_EXPORT_ZIP_USB,
     CMD_VIEW_DETAILS,
     CMD_VIEW_RAW_PATCH,
-    CMD_RESIGN_VMP,
-    CMD_CONVERT_TO_PSV,
     CMD_HEX_EDIT_FILE,
-    CMD_EXPORT_DATA_FILE,
-    CMD_IMPORT_DATA_FILE,
 
 // Bulk commands
-    CMD_EXPORT_SAVES,
-    CMD_EXPORT_ALL_SAVES,
-    CMD_EXP_SAVES_VMC,
-    CMD_EXP_ALL_SAVES_VMC,
     CMD_COPY_SAVES_USB,
     CMD_COPY_ALL_SAVES_USB,
     CMD_COPY_SAVES_HDD,
     CMD_COPY_ALL_SAVES_HDD,
-    CMD_COPY_SAVES_VMC,
-    CMD_COPY_ALL_SAVES_VMC,
-    CMD_DUMP_FINGERPRINTS,
     CMD_SAVE_WEBSERVER,
-
-// Export commands
-    CMD_EXP_VMP2MCR,
-    CMD_EXP_PS2SAVE,
-    CMD_EXP_VMCSAVE,
 
 // Import commands
     CMD_IMP_SAVE_MC,
-    CMD_IMP_VMCSAVE,
     CMD_EXTRACT_ARCHIVE,
     CMD_URL_DOWNLOAD,
     CMD_NET_WEBSERVER,
 
-// SFO patches
-    SFO_UNLOCK_COPY,
-    SFO_CHANGE_TITLE_ID,
+// Dreamcast VMU commands
+    CMD_DELETE_SAVE,
+    CMD_EXP_VMU_IMAGE,
 };
 
 // Save flags
@@ -113,6 +103,7 @@ enum cmd_code_enum
 #define SAVE_FLAG_LOCKED        128
 #define SAVE_FLAG_ONLINE        256
 #define SAVE_FLAG_VMC           512
+#define SAVE_FLAG_UPDATED       1024        // the list it came from must be re-read
 
 enum save_type_enum
 {
@@ -121,6 +112,9 @@ enum save_type_enum
     FILE_TYPE_MENU,
     FILE_TYPE_PS2,
     FILE_TYPE_VMC,
+    FILE_TYPE_VMS,
+    FILE_TYPE_DCI,
+    FILE_TYPE_VMI,
 
     // PS1 File Types
     FILE_TYPE_MCS,
@@ -142,7 +136,7 @@ enum char_flag_enum
 {
     CHAR_TAG_NULL,
     CHAR_TAG_PS1,
-    CHAR_TAG_PS2,
+    CHAR_TAG_UNUSED0,       // was PS2: the codes are positional, keep the slot
     CHAR_TAG_UNUSED1,
     CHAR_TAG_DC,
     CHAR_TAG_UNUSED2,
@@ -205,14 +199,21 @@ list_t * ReadUsbList(const char* userPath);
 list_t * ReadUserList(const char* userPath);
 list_t * ReadOnlineList(const char* urlPath);
 list_t * ReadBackupList(const char* userPath);
-list_t * ReadVmcList(const char* userPath);
 void UnloadGameList(list_t * list);
 char * readTextFile(const char * path, long* size);
 int sortSaveList_Compare(const void* A, const void* B);
 int sortSaveList_Compare_TitleID(const void* A, const void* B);
 int sortCodeList_Compare(const void* A, const void* B);
-int ReadCodes(save_entry_t * save);
-int ReadVmcCodes(save_entry_t * game);
+int ReadVmuCodes(save_entry_t * save);
+int ReadExtCodes(save_entry_t * save);
+uint8_t* get_dc_file_icon(const char* path);
+uint8_t* get_vmu_save_icon(const save_entry_t* save);
+int vmu_save_read(const save_entry_t* save, uint8_t** data, size_t* len);
+int vmu_save_write(const save_entry_t* save, const uint8_t* data, size_t len);
+int vmu_file_read(const char* vmu_path, const char* name, uint8_t** data, size_t* len);
+int vmu_file_write(const char* vmu_path, const char* name, const uint8_t* data, size_t len);
+int vmu_save_delete(const save_entry_t* save);
+int dc_save_file_read(const char* path, uint8_t dirent[32], uint8_t** data, size_t* len);
 int ReadOnlineSaves(save_entry_t * game);
 int ReadBackupCodes(save_entry_t * bup);
 

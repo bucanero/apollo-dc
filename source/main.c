@@ -12,6 +12,10 @@
 #include "utils.h"
 #include "common.h"
 #include "dcpad.h"
+#include "vmu_dev.h"
+
+#include <dc/sd.h>
+#include <fat/fs_fat.h>
 
 //Font
 #include "libfont.h"
@@ -68,31 +72,16 @@ uint32_t* texture_mem;                      // Pointers to texture memory
 uint32_t* free_mem;                         // Pointer after last texture
 
 
-const char * menu_pad_help[TOTAL_MENU_IDS] = { NULL,												//Main
-								"\x10 Select    \x13 Back    \x12 Details    \x11 Refresh",			//Trophy list
-								"\x10 Select    \x13 Back    \x12 Details    \x11 Refresh",			//USB list
-								"\x10 Select    \x13 Back    \x12 Details    \x11 Refresh",			//HDD list
-								"\x10 Select    \x13 Back    \x11 Refresh",							//Online list
-								"\x10 Select    \x13 Back    \x11 Refresh",							//User backup
-								"\x10 Select    \x13 Back",											//Options
-								"\x13 Back",														//About
-								"\x10 Select    \x12 View Code    \x13 Back",						//Select Cheats
-								"\x13 Back",														//View Cheat
-								"\x10 Select    \x13 Back",											//Cheat Option
-								"\x13 Back",														//View Details
-								"\x10 Value Up  \x11 Value Down   \x13 Exit",						//Hex Editor
-								};
-
 /*
 * HDD save list
 */
 save_list_t hdd_saves = {
     .icon_id = cat_hdd_png_index,
-    .title = "MemCard Saves",
+    .title = "VMU Saves",
     .list = NULL,
     .path = "",
     .ReadList = &ReadUserList,
-    .ReadCodes = &ReadCodes,
+    .ReadCodes = &ReadVmuCodes,
     .UpdatePath = &update_hdd_path,
 };
 
@@ -105,20 +94,20 @@ save_list_t usb_saves = {
     .list = NULL,
     .path = "",
     .ReadList = &ReadUsbList,
-    .ReadCodes = &ReadCodes,
+    .ReadCodes = &ReadExtCodes,
     .UpdatePath = &update_usb_path,
 };
 
 /*
-* Trophy list
+* VMU image (opened from External Saves): listed and managed like a VMU
 */
 save_list_t vmc_saves = {
 	.icon_id = cat_warning_png_index,
-	.title = "Virtual MemCard",
+	.title = "VMU Image",
     .list = NULL,
     .path = "",
-    .ReadList = &ReadVmcList,
-    .ReadCodes = &ReadVmcCodes,
+    .ReadList = &ReadUserList,
+    .ReadCodes = &ReadVmuCodes,
     .UpdatePath = &update_vmc_path,
 };
 
@@ -127,7 +116,7 @@ save_list_t vmc_saves = {
 */
 save_list_t online_saves = {
 	.icon_id = cat_db_png_index,
-	.title = "Online Database",
+	.title = "Saves Database",
     .list = NULL,
     .path = "",
     .ReadList = &ReadOnlineList,
@@ -148,6 +137,68 @@ save_list_t user_backup = {
     .UpdatePath = NULL,
 };
 
+
+static const char* get_button_prompts(char* prompt)
+{
+	switch (menu_id)
+	{
+		case MENU_USB_SAVES:
+		case MENU_HDD_SAVES:
+		case MENU_VMC_SAVES:
+			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s    \x11 %s    \x10 %s", "Select", "Back", "Details", "Refresh");
+			break;
+
+		case MENU_ONLINE_DB:
+		case MENU_USER_BACKUP:
+			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s    \x10 %s", "Select", "Back", "Refresh");
+			break;
+
+		case MENU_SETTINGS:
+		case MENU_CODE_OPTIONS:
+			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s", "Select", "Back");
+			break;
+
+		case MENU_CREDITS:
+		case MENU_PATCH_VIEW:
+		case MENU_SAVE_DETAILS:
+			snprintf(prompt, 0xFF, "\x13 %s", "Back");
+			break;
+
+		case MENU_PATCHES:
+			snprintf(prompt, 0xFF, "\x12 %s    \x11 %s    \x13 %s", "Select", "View Code", "Back");
+			break;
+
+		case MENU_HEX_EDITOR:
+			snprintf(prompt, 0xFF, "\x12 %s    \x10 %s    \x13 %s", "Value Up", "Value Down", "Exit");
+			break;
+
+		case MENU_MAIN_SCREEN:
+		default:
+			prompt[0] = 0;
+			break;
+	}
+
+	return prompt;
+}
+
+static void helpFooter(void)
+{
+	char footer[256];
+	u8 alpha = 0xFF;
+
+	if (dcPadGetConf()->idle > 0x100)
+	{
+		int dec = (dcPadGetConf()->idle - 0x100) * 4;
+		alpha = (dec > alpha) ? 0 : (alpha - dec);
+	}
+
+	SetFontSize(APP_FONT_SIZE_DESCRIPTION);
+	SetCurrentFont(font_adonais_regular);
+	SetFontAlign(FONT_ALIGN_SCREEN_CENTER);
+	SetFontColor(APP_FONT_COLOR | alpha, 0);
+	DrawString(0, SCREEN_HEIGHT - 40, get_button_prompts(footer));
+	SetFontAlign(FONT_ALIGN_LEFT);
+}
 
 static int initPad(void)
 {
@@ -241,7 +292,6 @@ static int LoadTextures_Menu(void)
 	load_menu_texture(tag_own, png);
 	load_menu_texture(tag_pack, png);
 	load_menu_texture(tag_ps1, png);
-	load_menu_texture(tag_ps2, png);
 	load_menu_texture(tag_dc, png);
 	load_menu_texture(tag_warning, png);
 	load_menu_texture(tag_zip, png);
@@ -266,34 +316,52 @@ static void LoadSounds(void)
 //	AHX_SubSong(0);
 }
 
+// External Saves: the SD card and the PC (dcload) are both scanned; path is set when either is there
 void update_usb_path(char* path)
 {
-	sprintf(path, "%s", menu_options[3].options[apollo_config.storage]);
-	if (dir_exists(path) == SUCCESS)
-		return;
+	const char* roots[] = {USB_PATH, HOST_PATH, NULL};
+
+	for (int i = 0; roots[i]; i++)
+		if (dir_exists(roots[i]) == SUCCESS)
+		{
+			strcpy(path, roots[i]);
+			return;
+		}
 
 	path[0] = 0;
 }
 
+// Pick which VMU to browse: scan the maple bus, then ask only if more than one is plugged in
 void update_hdd_path(char* path)
 {
-	int sel;
-	const char* memcard_opt[] = {"Memory Card 1", "Memory Card 2", NULL};
+	int sel, count;
+	char vmu_paths[MAX_VMU_DEVICES][VMUDEV_PATH_LEN];
+	char vmu_names[MAX_VMU_DEVICES][VMUDEV_NAME_LEN];
+	const char* vmu_opt[MAX_VMU_DEVICES + 1];
 
 	path[0] = 0;
-	if (dir_exists(MC0_PATH) == SUCCESS && dir_exists(MC1_PATH) == SUCCESS)
-	{
-		if ((sel = show_multi_dialog(memcard_opt, "Select Memory Card")) < 0)
-			return;
+	count = vmudev_list(vmu_paths, vmu_names, MAX_VMU_DEVICES);
 
-		strcpy(path, sel ? MC1_PATH : MC0_PATH);
+	if (count <= 0)
+	{
+		show_message("No VMU detected!\n\nPlease insert a Visual Memory Unit\nin a controller slot");
 		return;
 	}
-	else if (dir_exists(MC0_PATH) == SUCCESS)
-		strcpy(path, MC0_PATH);
 
-	else if (dir_exists(MC1_PATH) == SUCCESS)
-		strcpy(path, MC1_PATH);
+	if (count == 1)
+	{
+		strcpy(path, vmu_paths[0]);
+		return;
+	}
+
+	for (int i = 0; i < count; i++)
+		vmu_opt[i] = vmu_names[i];
+	vmu_opt[count] = NULL;
+
+	if ((sel = show_multi_dialog(vmu_opt, "Select VMU")) < 0)
+		return;
+
+	strcpy(path, vmu_paths[sel]);
 }
 
 void update_vmc_path(char* path)
@@ -304,8 +372,22 @@ void update_vmc_path(char* path)
 	path[0] = 0;
 }
 
+// Saves DB: the copy on the disc, else one on the SD card or the PC (dcload), else the online one
 void update_db_path(char* path)
 {
+	const char* local[] = {"/cd/", USB_PATH, HOST_PATH, NULL};
+
+	for (int i = 0; local[i]; i++)
+	{
+		snprintf(path, 128, "%s" SAVEDB_PATH "games.txt", local[i]);
+		if (file_exists(path) == SUCCESS)
+		{
+			snprintf(path, 128, "%s" SAVEDB_PATH, local[i]);
+			LOG("Saves DB found at %s", path);
+			return;
+		}
+	}
+
 	strcpy(path, apollo_config.save_db);
 }
 
@@ -313,7 +395,6 @@ static void registerSpecialChars(void)
 {
 	// Register save tags
 	RegisterSpecialCharacter(CHAR_TAG_PS1, 0, 1.5, &menu_textures[tag_ps1_png_index]);
-	RegisterSpecialCharacter(CHAR_TAG_PS2, 0, 1.5, &menu_textures[tag_ps2_png_index]);
 	RegisterSpecialCharacter(CHAR_TAG_DC, 0, 1.5, &menu_textures[tag_dc_png_index]);
 	RegisterSpecialCharacter(CHAR_TAG_PACK, 0, 0.8, &menu_textures[tag_pack_png_index]);
 	RegisterSpecialCharacter(CHAR_TAG_LOCKED, 0, 1.3, &menu_textures[tag_lock_png_index]);
@@ -342,32 +423,27 @@ static void terminate(void)
 //	AHX_Quit();
 }
 
+// Mount the first partition of an SD card adapter (if any) at /sd, for save exports and imports
 static int initInternal(void)
 {
-	// load common modules
-	int ret;
+	static kos_blockdev_t sd_dev;
+	uint8_t partition_type;
 
-	// Initialise
-
-/*
-	ret = SifLoadModule("rom0:XMCMAN", 0, NULL);
-	if (ret < 0) {
-		LOG("Failed to load module: MCMAN");
-		return(0);
+	if (sd_init() != 0)
+	{
+		LOG("No SD card found");
+		return 1;
 	}
 
-	ret = SifLoadModule("rom0:XMCSERV", 0, NULL);
-	if (ret < 0) {
-		LOG("Failed to load module: MCSERV");
-		return(0);
-	}
-*/
-
-	if(0) {
-		LOG("Failed to initialise memcard server!");
-		return(0);
+	if (sd_blockdev_for_partition(0, &sd_dev, &partition_type) != 0 || fs_fat_init() != 0 ||
+		fs_fat_mount("/sd", &sd_dev, FS_FAT_MOUNT_READWRITE) != 0)
+	{
+		LOG("Error mounting SD card (partition type %02X)", partition_type);
+		sd_shutdown();
+		return 1;
 	}
 
+	LOG("SD card mounted at /sd");
 	return 1;
 }
 
@@ -451,6 +527,12 @@ int main(int argc, char *argv[])
 
 	// Initialize SDL functions
 	LOG("Initializing SDL");
+	// the Dreamcast SDL2 port defaults to a plain framebuffer (DMA) video mode with no OpenGL:
+	// ask for the GLdc-backed mode that the OpenGL renderer needs
+#ifdef SDL_HINT_DC_VIDEO_MODE
+	SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_OPENGL_VIDEO");
+#endif
+
 	if (SDL_Init(SDL_INIT_VIDEO) != SUCCESS)
 	{
 		LOG("Failed to initialize SDL: %s", SDL_GetError());
@@ -548,24 +630,7 @@ int main(int argc, char *argv[])
 		drawScene();
 
 		//Draw help
-		if (menu_pad_help[menu_id])
-		{
-			u8 alpha = 0xFF;
-			if (dcPadGetConf()->idle > 0x100)
-			{
-				int dec = (dcPadGetConf()->idle - 0x100) * 4;
-				if (dec > alpha)
-					dec = alpha;
-				alpha -= dec;
-			}
-			
-			SetFontSize(APP_FONT_SIZE_DESCRIPTION);
-			SetCurrentFont(font_adonais_regular);
-			SetFontAlign(FONT_ALIGN_SCREEN_CENTER);
-			SetFontColor(APP_FONT_COLOR | alpha, 0);
-			DrawString(0, SCREEN_HEIGHT - 40, (char *)menu_pad_help[menu_id]);
-			SetFontAlign(FONT_ALIGN_LEFT);
-		}
+		helpFooter();
 
 #ifdef APOLLO_ENABLE_LOGGING
 		// Calculate FPS and ms/frame
