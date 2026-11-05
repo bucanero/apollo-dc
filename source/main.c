@@ -72,21 +72,6 @@ uint32_t* texture_mem;                      // Pointers to texture memory
 uint32_t* free_mem;                         // Pointer after last texture
 
 
-const char * menu_pad_help[TOTAL_MENU_IDS] = { NULL,												//Main
-								"\x12 Select    \x13 Back    \x11 Details    \x10 Refresh",			//Trophy list
-								"\x12 Select    \x13 Back    \x11 Details    \x10 Refresh",			//USB list
-								"\x12 Select    \x13 Back    \x11 Details    \x10 Refresh",			//HDD list
-								"\x12 Select    \x13 Back    \x10 Refresh",							//Online list
-								"\x12 Select    \x13 Back    \x10 Refresh",							//User backup
-								"\x12 Select    \x13 Back",											//Options
-								"\x13 Back",														//About
-								"\x12 Select    \x11 View Code    \x13 Back",						//Select Cheats
-								"\x13 Back",														//View Cheat
-								"\x12 Select    \x13 Back",											//Cheat Option
-								"\x13 Back",														//View Details
-								"\x12 Value Up  \x10 Value Down   \x13 Exit",						//Hex Editor
-								};
-
 /*
 * HDD save list
 */
@@ -152,6 +137,68 @@ save_list_t user_backup = {
     .UpdatePath = NULL,
 };
 
+
+static const char* get_button_prompts(char* prompt)
+{
+	switch (menu_id)
+	{
+		case MENU_USB_SAVES:
+		case MENU_HDD_SAVES:
+		case MENU_VMC_SAVES:
+			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s    \x11 %s    \x10 %s", "Select", "Back", "Details", "Refresh");
+			break;
+
+		case MENU_ONLINE_DB:
+		case MENU_USER_BACKUP:
+			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s    \x10 %s", "Select", "Back", "Refresh");
+			break;
+
+		case MENU_SETTINGS:
+		case MENU_CODE_OPTIONS:
+			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s", "Select", "Back");
+			break;
+
+		case MENU_CREDITS:
+		case MENU_PATCH_VIEW:
+		case MENU_SAVE_DETAILS:
+			snprintf(prompt, 0xFF, "\x13 %s", "Back");
+			break;
+
+		case MENU_PATCHES:
+			snprintf(prompt, 0xFF, "\x12 %s    \x11 %s    \x13 %s", "Select", "View Code", "Back");
+			break;
+
+		case MENU_HEX_EDITOR:
+			snprintf(prompt, 0xFF, "\x12 %s    \x10 %s    \x13 %s", "Value Up", "Value Down", "Exit");
+			break;
+
+		case MENU_MAIN_SCREEN:
+		default:
+			prompt[0] = 0;
+			break;
+	}
+
+	return prompt;
+}
+
+static void helpFooter(void)
+{
+	char footer[256];
+	u8 alpha = 0xFF;
+
+	if (dcPadGetConf()->idle > 0x100)
+	{
+		int dec = (dcPadGetConf()->idle - 0x100) * 4;
+		alpha = (dec > alpha) ? 0 : (alpha - dec);
+	}
+
+	SetFontSize(APP_FONT_SIZE_DESCRIPTION);
+	SetCurrentFont(font_adonais_regular);
+	SetFontAlign(FONT_ALIGN_SCREEN_CENTER);
+	SetFontColor(APP_FONT_COLOR | alpha, 0);
+	DrawString(0, SCREEN_HEIGHT - 40, get_button_prompts(footer));
+	SetFontAlign(FONT_ALIGN_LEFT);
+}
 
 static int initPad(void)
 {
@@ -583,24 +630,7 @@ int main(int argc, char *argv[])
 		drawScene();
 
 		//Draw help
-		if (menu_pad_help[menu_id])
-		{
-			u8 alpha = 0xFF;
-			if (dcPadGetConf()->idle > 0x100)
-			{
-				int dec = (dcPadGetConf()->idle - 0x100) * 4;
-				if (dec > alpha)
-					dec = alpha;
-				alpha -= dec;
-			}
-			
-			SetFontSize(APP_FONT_SIZE_DESCRIPTION);
-			SetCurrentFont(font_adonais_regular);
-			SetFontAlign(FONT_ALIGN_SCREEN_CENTER);
-			SetFontColor(APP_FONT_COLOR | alpha, 0);
-			DrawString(0, SCREEN_HEIGHT - 40, (char *)menu_pad_help[menu_id]);
-			SetFontAlign(FONT_ALIGN_LEFT);
-		}
+		helpFooter();
 
 #ifdef APOLLO_ENABLE_LOGGING
 		// Calculate FPS and ms/frame

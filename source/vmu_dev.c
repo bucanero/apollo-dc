@@ -239,6 +239,76 @@ unlock:
 	vmufs_mutex_unlock();
 }
 
+/*
+ * A VMU mini-game must sit in one run of blocks starting at block 0, and a VMU
+ * holds only one. vmufs_write() just takes the lowest free blocks, so the game
+ * is written here instead, checking both rules under the vmufs lock first (a
+ * game with the same name, being replaced, doesn't count against either).
+ * `len` is a multiple of the block size; the original timestamp is kept.
+ */
+static int write_game(maple_device_t* dev, const vmu_dir_t* src, const char* fn, const uint8_t* data, size_t len)
+{
+	vmu_root_t root;
+	vmu_dir_t nd, *dir = NULL;
+	uint16_t* fat = NULL;
+	int blocks = len / VMU_BLOCK_SIZE, ok = 0, idx;
+
+	vmufs_mutex_lock();
+
+	if (vmufs_root_read(dev, &root) < 0 ||
+		(dir = malloc(vmufs_dir_blocks(&root))) == NULL || (fat = malloc(vmufs_fat_blocks(&root))) == NULL ||
+		vmufs_dir_read(dev, &root, dir) < 0 || vmufs_fat_read(dev, &root, fat) < 0)
+	{
+		LOG("Error reading the VMU filesystem");
+		goto out;
+	}
+
+	// replacing a file: free its blocks and entry (in memory only, until the write below)
+	if ((idx = vmufs_dir_find(&root, dir, fn)) >= 0 && vmufs_file_delete(&root, fat, dir, fn) < 0)
+		goto out;
+
+	for (int i = 0; i < (int)(vmufs_dir_blocks(&root) / sizeof(vmu_dir_t)); i++)
+		if (dir[i].filetype == VMU_FILE_GAME)
+		{
+			LOG("Error: a VMU game (%.12s) is already installed", dir[i].filename);
+			goto out;
+		}
+
+	if (blocks > root.blk_cnt)
+	{
+		LOG("Error: '%s' is too big for a VMU game (%d blocks)", fn, blocks);
+		goto out;
+	}
+
+	for (int b = 0; b < blocks; b++)
+		if (fat[b] != VMU_FAT_UNALLOCATED)
+		{
+			LOG("Error: VMU blocks 0-%d must be free for game '%s' (block %d is in use)", blocks - 1, fn, b);
+			goto out;
+		}
+
+	// blocks 0..n-1 are free, so the lowest-first allocation lays the game out from block 0
+	nd = *src;
+	nd.firstblk = 0;
+	nd.dirty = 1;
+	memset(nd.pad1, 0, sizeof(nd.pad1));
+
+	if (vmufs_file_write(dev, &root, fat, dir, &nd, data, blocks) < 0 || nd.firstblk != 0 ||
+		vmufs_fat_write(dev, &root, fat) < 0 || vmufs_dir_write(dev, &root, dir) < 0)
+	{
+		LOG("Error writing game '%s'", fn);
+		goto out;
+	}
+
+	ok = 1;
+
+out:
+	free(fat);
+	free(dir);
+	vmufs_mutex_unlock();
+	return ok;
+}
+
 int vmudev_write_file(const char* path, const uint8_t dirent[VMUDEV_DIRENT_SIZE], const uint8_t* data, size_t len)
 {
 	vmu_dir_t de;
@@ -252,8 +322,6 @@ int vmudev_write_file(const char* path, const uint8_t dirent[VMUDEV_DIRENT_SIZE]
 	memcpy(&de, dirent, sizeof(vmu_dir_t));
 	raw_name(&de, fn);
 
-	if (de.filetype == VMU_FILE_GAME)
-		flags |= VMUFS_VMUGAME;
 	if (de.copyprotect)
 		flags |= VMUFS_NOCOPY;
 
@@ -266,15 +334,25 @@ int vmudev_write_file(const char* path, const uint8_t dirent[VMUDEV_DIRENT_SIZE]
 		return 0;
 
 	memcpy(write_data, data, len);
-	r = vmufs_write(dev, fn, write_data, (int) write_len, flags);
-	free(write_data);
-	if (r < 0)
+	if (de.filetype == VMU_FILE_GAME)
 	{
-		LOG("Error writing '%s' to %s (%d)", fn, path, r);
-		return 0;
+		r = write_game(dev, &de, fn, write_data, write_len);
+		free(write_data);
+		if (!r)
+			return 0;
 	}
+	else
+	{
+		r = vmufs_write(dev, fn, write_data, (int) write_len, flags);
+		free(write_data);
+		if (r < 0)
+		{
+			LOG("Error writing '%s' to %s (%d)", fn, path, r);
+			return 0;
+		}
 
-	restore_timestamp(dev, &de);
+		restore_timestamp(dev, &de);
+	}
 	LOG("Wrote '%s' to %s (%d bytes)", fn, path, (int) len);
 
 	return 1;

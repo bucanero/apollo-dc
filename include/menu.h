@@ -232,7 +232,6 @@ extern int menu_id;
 extern int menu_sel;
 extern int menu_old_sel[]; 
 extern int last_menu_id[];
-extern const char * menu_pad_help[];
 
 extern struct save_entry * selected_entry;
 extern struct code_entry * selected_centry;

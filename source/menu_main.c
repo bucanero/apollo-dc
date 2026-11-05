@@ -108,6 +108,29 @@ static code_entry_t* LoadRawPatch(void)
 	return centry;
 }
 
+static code_entry_t* LoadOnlineSaveDetails(void)
+{
+	code_entry_t* centry = calloc(1, sizeof(code_entry_t));
+	centry->name = strdup(selected_entry->title_id);
+	centry->file = strdup(selected_centry->name+2);
+
+	for (int i = 55, len = strlen(centry->file); i < len; i += 55)
+		for (int j = i; j < len; j++)
+			if (centry->file[j] == ' ')
+			{
+				centry->file[j] = '\n';
+				i = j;
+				break;
+			}
+
+	asprintf(&centry->codes, "Game: %s\nTitle ID: %s\nFile: %s\n%s%s\n----- Details -----\n%s\n",
+		selected_entry->name, selected_entry->title_id, selected_centry->file, selected_entry->path, selected_centry->file, centry->file);
+	free(centry->file);
+	centry->file = NULL;
+
+	return centry;
+}
+
 static code_entry_t* LoadSaveDetails(void)
 {
 	code_entry_t* centry = calloc(1, sizeof(code_entry_t));
@@ -291,6 +314,7 @@ static void SetMenu(int id)
 			break;
 
 		case MENU_SAVE_DETAILS: //Save Detail View Menu
+			menu_old_sel[MENU_SAVE_DETAILS] = 0;
 			if (apollo_config.doAni)
 				Draw_CheatsMenu_View_Ani(selected_entry->name);
 			break;
@@ -792,6 +816,13 @@ static void doPatchMenu(void)
 	else if (dcPadGetButtonPressed(CONT_Y))
 	{
 		selected_centry = list_get_item(selected_entry->codes, menu_sel);
+
+		if (selected_entry->flags & SAVE_FLAG_ONLINE)
+		{
+			selected_centry = LoadOnlineSaveDetails();
+			SetMenu(MENU_SAVE_DETAILS);
+			return;
+		}
 
 		if (selected_centry->type == PATCH_GAMEGENIE || selected_centry->type == PATCH_BSD ||
 			selected_centry->type == PATCH_TROP_LOCK || selected_centry->type == PATCH_TROP_UNLOCK)
