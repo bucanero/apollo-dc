@@ -42,6 +42,7 @@ echo "Disc contents: $(find "$STAGE" -type f | wc -l) files, $(du -sh "$STAGE" |
 
 "$MKDCDISC" --no-banner \
 	--allow-overwrite \
+	--disable-data-track-padding \
 	-e "$ELF" \
 	-D "$STAGE" \
 	-n "Apollo Save Tool" \
