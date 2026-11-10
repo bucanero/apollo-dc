@@ -15,6 +15,7 @@
 #include "vmu_dev.h"
 
 #include <dc/sd.h>
+#include <dc/sci.h>
 #include <fat/fs_fat.h>
 
 //Font
@@ -423,27 +424,123 @@ static void terminate(void)
 //	AHX_Quit();
 }
 
-// Mount the first partition of an SD card adapter (if any) at /sd, for save exports and imports
-static int initInternal(void)
+static int is_fat_partition(uint8_t type)
+{
+	switch (type)
+	{
+	case 0x01:  // FAT12
+	case 0x04:  // FAT16 < 32 MB
+	case 0x06:  // FAT16
+	case 0x0B:  // FAT32 (CHS)
+	case 0x0C:  // FAT32 (LBA)
+	case 0x0E:  // FAT16 (LBA)
+		return 1;
+	}
+
+	return 0;
+}
+
+// Mount the first FAT partition (of the 4 in the MBR) on the SD card at /sd
+static int mount_sd_card(void)
 {
 	static kos_blockdev_t sd_dev;
-	uint8_t partition_type;
+	uint8_t type;
 
-	if (sd_init() != 0)
+	if (fs_fat_init() != 0)
+		return 0;
+
+	for (int part = 0; part < 4; part++)
 	{
-		LOG("No SD card found");
-		return 1;
+		if (sd_blockdev_for_partition(part, &sd_dev, &type) != 0)
+			continue;
+
+		if (!is_fat_partition(type))
+		{
+			LOG("SD partition %d: not FAT (type %02X)", part, type);
+			sd_dev.shutdown(&sd_dev);
+			continue;
+		}
+
+		if (fs_fat_mount("/sd", &sd_dev, FS_FAT_MOUNT_READWRITE) == 0)
+		{
+			LOG("SD partition %d (type %02X) mounted at /sd", part, type);
+			return 1;
+		}
+
+		LOG("SD partition %d (type %02X): can't mount", part, type);
+		sd_dev.shutdown(&sd_dev);
 	}
 
-	if (sd_blockdev_for_partition(0, &sd_dev, &partition_type) != 0 || fs_fat_init() != 0 ||
-		fs_fat_mount("/sd", &sd_dev, FS_FAT_MOUNT_READWRITE) != 0)
+	return 0;
+}
+
+/*
+ * KOS waits for each SCI SPI byte with no timeout. A real SH4 clocks the byte out
+ * itself, connected or not, but emulators without SCI (Flycast) never finish it:
+ * send one idle byte with a timeout first, and skip SCI if it doesn't come back.
+ */
+#define SCI_SCSCR1  (*(volatile uint8_t *)0xFFE00008)
+#define SCI_SCTDR1  (*(volatile uint8_t *)0xFFE0000C)
+#define SCI_SCSSR1  (*(volatile uint8_t *)0xFFE00010)
+#define SCI_SCRDR1  (*(volatile uint8_t *)0xFFE00014)
+
+static int sci_spi_works(void)
+{
+	int ok = 0;
+
+	if (sci_init(SCI_SPI_BAUD_INIT, SCI_MODE_SPI, SCI_CLK_INT, 512) != SCI_OK)
+		return 0;
+
+	SCI_SCSCR1 |= 0x30;                     // TE | RE
+	for (int t = 0; t < 100000 && !ok; t++)
+		ok = (SCI_SCSSR1 & 0x80);           // TDRE
+
+	if (ok)
 	{
-		LOG("Error mounting SD card (partition type %02X)", partition_type);
+		SCI_SCTDR1 = 0xFF;
+		SCI_SCSSR1 &= ~0x80;
+		ok = 0;
+		for (int t = 0; t < 100000 && !ok; t++)
+			ok = (SCI_SCSSR1 & 0x40);       // RDRF
+
+		if (ok)
+		{
+			(void) SCI_SCRDR1;
+			SCI_SCSSR1 &= ~0x40;
+		}
+	}
+
+	SCI_SCSCR1 &= ~0x30;
+	sci_shutdown();
+
+	if (!ok)
+		LOG("SCI not responding: skipping SCI SD card adapter");
+
+	return ok;
+}
+
+// Find an SD card adapter (serial port, then SCI) and mount it at /sd, for save exports and imports.
+// CRC checks are off, as in DreamShell: some adapters and cards fail with them.
+static int initInternal(void)
+{
+	const sd_interface_t ifaces[] = {SD_IF_SCIF, SD_IF_SCI};
+	sd_init_params_t params = { .check_crc = false };
+
+	for (int i = 0; i < 2; i++)
+	{
+		params.interface = ifaces[i];
+		if ((ifaces[i] == SD_IF_SCI && !sci_spi_works()) || sd_init_ex(&params) != 0)
+			continue;
+
+		LOG("SD card found on %s: %d MB", (ifaces[i] == SD_IF_SCIF) ? "SCIF" : "SCI", (int)(sd_get_size() / (1024 * 1024)));
+		if (mount_sd_card())
+			return 1;
+
+		LOG("No FAT partition found on the SD card");
 		sd_shutdown();
-		return 1;
 	}
 
-	LOG("SD card mounted at /sd");
+	LOG("No SD card mounted");
 	return 1;
 }
 
