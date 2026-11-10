@@ -294,7 +294,7 @@ static void enableWebServer(dWebReqHandler_t handler, void* data, int port)
 */
 }
 
-static void* ps2_host_callback(int id, int* size)
+static void* ps2_host_callback(int id, uint32_t* size)
 {
 	memset(host_buf, 0, sizeof(host_buf));
 
@@ -362,7 +362,8 @@ static int apply_cheat_patches(const save_entry_t* entry)
 
 	for (node = list_head(entry->codes); (code = list_get(node)); node = list_next(node))
 	{
-		if (!code->activated || (code->type != PATCH_GAMEGENIE && code->type != PATCH_BSD))
+		if (!code->activated || (code->flags & APOLLO_CODE_FLAG_DISABLED) ||
+			(code->type != PATCH_GAMEGENIE && code->type != PATCH_BSD))
 			continue;
 
 		LOG("Active code: [%s]", code->name);
@@ -400,7 +401,7 @@ static int apply_cheat_patches(const save_entry_t* entry)
 		else
 			snprintf(tmpfile, sizeof(tmpfile), "%s%s", entry->path, filename);
 
-		if (!apply_cheat_patch_code(tmpfile, entry->title_id, code, &ps2_host_callback))
+		if (!apollo_apply_code(tmpfile, code, &ps2_host_callback))
 		{
 			LOG("Error: failed to apply (%s)", code->name);
 			ret = 0;
@@ -431,7 +432,7 @@ static int apply_cheat_patches(const save_entry_t* entry)
 	}
 
 	list_free(vmu_files);
-	free_patch_var_list();
+	apollo_free_var_list();
 	stop_loading_screen();
 
 	return ret;

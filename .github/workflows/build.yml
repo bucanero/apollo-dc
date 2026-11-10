@@ -19,7 +19,7 @@ jobs:
           apk update
           apk add gmp mpc1 mpfr4 make cmake git bash curl meson ninja build-base pkgconf libisofs-dev libpng-dev
           git clone https://github.com/bucanero/dbglogger
-          git clone --branch v1.4.0 https://github.com/bucanero/apollo-lib
+          git clone --branch dc-ps2 https://github.com/bucanero/apollo-lib
           git clone --depth 1 --branch dreamcastSDL2 https://github.com/GPF/SDL
           git clone --depth 1 https://github.com/KallistiOS/KallistiOS.git -b master /opt/toolchains/dc/kos
           git clone --depth 1 --recursive https://github.com/KallistiOS/kos-ports /opt/toolchains/dc/kos-ports
@@ -87,7 +87,8 @@ jobs:
         run: |
           . /opt/toolchains/dc/kos/environ.sh
           cd apollo-lib
-#          make -f Makefile.DC install
+          # replace the archived apollo-lib (v1.4.0) with this one, built without MicroPython
+          make -f Makefile.DC install
 
       - name: build mkdcdisc
         run: |
