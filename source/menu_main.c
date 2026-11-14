@@ -754,11 +754,7 @@ static void doPatchMenu(void)
 	{
 		selected_centry = list_get_item(selected_entry->codes, menu_sel);
 
-		// disabled codes can't be selected
-		if (selected_centry->flags & APOLLO_CODE_FLAG_DISABLED)
-			return;
-
-		if (selected_centry->type != PATCH_NULL)
+		if (selected_centry->type != PATCH_NULL && !(selected_centry->flags & APOLLO_CODE_FLAG_DISABLED))
 			selected_centry->activated = !selected_centry->activated;
 
 		if (selected_centry->type == PATCH_COMMAND)
