@@ -305,7 +305,7 @@ static void enableWebServer(dWebReqHandler_t handler, void* data, int port)
 */
 }
 
-static void* dc_host_callback(int id, int* size)
+static void* dc_host_callback(int id, uint32_t* size)
 {
 	memset(host_buf, 0, sizeof(host_buf));
 
