@@ -754,7 +754,7 @@ static void doPatchMenu(void)
 	{
 		selected_centry = list_get_item(selected_entry->codes, menu_sel);
 
-		if (selected_centry->type != PATCH_NULL)
+		if (selected_centry->type != PATCH_NULL && !(selected_centry->flags & APOLLO_CODE_FLAG_DISABLED))
 			selected_centry->activated = !selected_centry->activated;
 
 		if (selected_centry->type == PATCH_COMMAND)
@@ -777,7 +777,8 @@ static void doPatchMenu(void)
 				list_node_t* node;
 
 				for (node = list_head(selected_entry->codes); (code = list_get(node)); node = list_next(node))
-					if (wildcard_match_icase(code->name, "*(REQUIRED)*") && code->options_count == 0)
+					if (wildcard_match_icase(code->name, "*(REQUIRED)*") && code->options_count == 0 &&
+						!(code->flags & APOLLO_CODE_FLAG_DISABLED))
 						code->activated = 1;
 			}
 			/*
