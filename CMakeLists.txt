@@ -100,6 +100,13 @@ target_link_libraries(${PROJECT_NAME}
   z
 )
 
+# Unscrambled binary, for loaders that run plain .bin files (DreamShell)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+  COMMAND ${CMAKE_OBJCOPY} -R .stack -O binary $<TARGET_FILE:${PROJECT_NAME}> ${PROJECT_NAME}.BIN
+  COMMENT "Building ${PROJECT_NAME}.BIN"
+  VERBATIM
+)
+
 # Self-booting disc image: the app, plus app data and the offline Saves DB (see tools/make_disc.sh)
 set(APOLLO_SAVES_DIR "${CMAKE_SOURCE_DIR}/../apollo-saves" CACHE PATH "apollo-saves checkout (uses its DC/ folder)")
 set(APOLLO_PATCHES_DIR "${CMAKE_SOURCE_DIR}/../apollo-patches" CACHE PATH "apollo-patches checkout")
