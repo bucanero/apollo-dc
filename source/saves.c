@@ -1305,6 +1305,13 @@ list_t * ReadOnlineList(const char* urlPath)
 	snprintf(url, sizeof(url), (urlPath[0] == '/') ? "%s" : "%sDC/", urlPath);
 	_ReadOnlineListEx(url, SAVE_FLAG_DC, list);
 
+	// the online DB couldn't be read: use a local copy (disc, SD, PC) if there's one
+	if (!list_count(list) && urlPath[0] != '/' && find_local_savedb(url))
+	{
+		LOG("Online Saves DB not available, using %s", url);
+		_ReadOnlineListEx(url, SAVE_FLAG_DC, list);
+	}
+
 	if (!list_count(list))
 	{
 		list_free(list);

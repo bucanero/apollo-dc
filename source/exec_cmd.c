@@ -314,6 +314,10 @@ static void* dc_host_callback(int id, uint32_t* size)
 	case APOLLO_HOST_TEMP_PATH:
 		return APOLLO_LOCAL_CACHE;
 
+	case APOLLO_HOST_DATA_PATH:
+		// Python codes import their modules from <data path>python/
+		return APOLLO_DATA_PATH;
+
 	case APOLLO_HOST_LAN_ADDR:
 		if (1)//(sceWlanGetEtherAddr(host_buf) < 0)
 			LOG("Error getting LAN Ethernet Address");
@@ -831,21 +835,32 @@ static int importDbSave(const save_entry_t* game, const char* zip_name, const ch
 	DIR* d;
 	int ret = 0;
 
-	snprintf(zip, sizeof(zip), "%s%s", game->path, zip_name);
-	if (game->path[0] != '/')
-	{
-		show_message("Error! Only a local Saves DB (disc, SD, PC) can be imported from");
-		return 0;
-	}
-
 	clean_savedb_tmp();
 	mkdirs(SAVEDB_TMP_PATH);
+
+	// online Saves DB: download the zip to the RAM disk first
+	if (game->path[0] != '/')
+	{
+		snprintf(zip, sizeof(zip), APOLLO_LOCAL_CACHE "tmpsave.zip");
+		if (!http_download(game->path, zip_name, zip, 1))
+		{
+			show_message("Error downloading save game from:\n%s%s", game->path, zip_name);
+			return 0;
+		}
+	}
+	else
+		snprintf(zip, sizeof(zip), "%s%s", game->path, zip_name);
 
 	if (!extract_zip(zip, SAVEDB_TMP_PATH))
 	{
 		show_message("Error extracting save game:\n%s", zip);
+		if (game->path[0] != '/')
+			unlink(zip);
 		return 0;
 	}
+
+	if (game->path[0] != '/')
+		unlink(zip);
 
 	if ((d = opendir(SAVEDB_TMP_PATH)) != NULL)
 	{
