@@ -44,7 +44,7 @@ This homebrew app allows you to manage, back up, patch, and import save-game fil
 
 Get the [latest version here][app_latest].
 
-Development builds of every commit are available in the [GitHub Actions](https://github.com/bucanero/apollo-dc/actions/workflows/build.yml) page (`apollo-dc.cdi` and `APOLLO-DC.elf`).
+Development builds of every commit are available in the [GitHub Actions](https://github.com/bucanero/apollo-dc/actions/workflows/build.yml) page (`apollo-dc.cdi`, `APOLLO-DC.elf` and `APOLLO-DC.BIN`).
 
 ## Changelog
 
@@ -61,7 +61,7 @@ No special setup is needed. Just follow these simple steps:
 2. Burn it to a CD-R, or copy it to your optical drive emulator (GDEMU, MODE, ...).
 3. Boot the disc on your Dreamcast.
 
-You can also run the app on an emulator like [Flycast](https://github.com/flyinghead/flycast), or load `APOLLO-DC.elf` with [dcload](https://github.com/sizious/dcload-ip).
+You can also run the app on an emulator like [Flycast](https://github.com/flyinghead/flycast), load `APOLLO-DC.elf` with [dcload](https://github.com/sizious/dcload-ip), or start `APOLLO-DC.BIN` from [DreamShell](https://github.com/DC-SWAT/DreamShell) (open it in the file manager, or run `exec -b -f <path>/APOLLO-DC.BIN`).
 
 To import and export save files, an SD card adapter (FAT formatted) is supported. When running from dcload, the PC is also available as storage.
 
@@ -137,7 +137,7 @@ You need to have installed:
 > [!TIP]
 > The [GitHub Actions workflow](.github/workflows/build.yml) builds the whole toolchain from scratch, and can be used as a reference.
 
-Run `kos-cmake -S . && make` to create `APOLLO-DC.elf`.
+Run `kos-cmake -S . && make` to create `APOLLO-DC.elf`, and the unscrambled `APOLLO-DC.BIN`.
 
 To build the self-booting `apollo-dc.cdi` disc image, with the [save patches](https://github.com/bucanero/apollo-patches) and the [Saves DB](https://github.com/bucanero/apollo-saves), run `make cdi`. By default, it expects `apollo-patches` and `apollo-saves` to be checked out next to this repository; you can point to other locations, and to `mkdcdisc`, with:
 

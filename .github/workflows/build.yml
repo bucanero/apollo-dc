@@ -113,5 +113,6 @@ jobs:
           name: apollo-dc-build_${{ env.sha_name }}
           path: |
             APOLLO-DC.elf
+            APOLLO-DC.BIN
             apollo-dc.cdi
           if-no-files-found: error

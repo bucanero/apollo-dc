@@ -48,6 +48,20 @@ static int _set_dest_path(char* path, int dest, const char* folder)
 	return 1;
 }
 
+// create the export folder; an unmounted SD card gets its own message
+static int check_export_dir(const char* path)
+{
+	if (mkdirs(path) == SUCCESS)
+		return 1;
+
+	if (strncmp(path, USB_PATH, strlen(USB_PATH)) == 0 && dir_exists(USB_PATH) != SUCCESS)
+		show_message("Error! No SD card found\n\nUse a FAT formatted card in an SD card adapter");
+	else
+		show_message("Error! Export folder is not available:\n%s", path);
+
+	return 0;
+}
+
 static void downloadSave(const save_entry_t* entry, const char* file, int dst)
 {
 	char path[256], zip[256];
@@ -56,11 +70,8 @@ static void downloadSave(const save_entry_t* entry, const char* file, int dst)
 	if (dst == STORAGE_MC0)
 		snprintf(path, sizeof(path), PSP_SAVES_PATH_HDD);
 
-	if (mkdirs(path) != SUCCESS)
-	{
-		show_message("Error! Export folder is not available:\n%s", path);
+	if (!check_export_dir(path))
 		return;
-	}
 
 	// local Saves DB (disc, SD, PC): unzip straight from it
 	if (entry->path[0] == '/')
@@ -294,7 +305,7 @@ static void enableWebServer(dWebReqHandler_t handler, void* data, int port)
 */
 }
 
-static void* ps2_host_callback(int id, uint32_t* size)
+static void* dc_host_callback(int id, int* size)
 {
 	memset(host_buf, 0, sizeof(host_buf));
 
@@ -401,7 +412,7 @@ static int apply_cheat_patches(const save_entry_t* entry)
 		else
 			snprintf(tmpfile, sizeof(tmpfile), "%s%s", entry->path, filename);
 
-		if (!apollo_apply_code(tmpfile, code, &ps2_host_callback))
+		if (!apollo_apply_code(tmpfile, code, &dc_host_callback))
 		{
 			LOG("Error: failed to apply (%s)", code->name);
 			ret = 0;
@@ -585,11 +596,8 @@ static void exportVmuSave(const save_entry_t* save, int type, int dev)
 	char out_dir[256];
 
 	_set_dest_path(out_dir, dev, DC_SAVES_PATH);
-	if (mkdirs(out_dir) != SUCCESS)
-	{
-		show_message("Error! Export folder is not available:\n%s", out_dir);
+	if (!check_export_dir(out_dir))
 		return;
-	}
 
 	init_loading_screen("Exporting save game...");
 	int ret = _export_vmu_save(save->path, save->dir_name, type, out_dir);
@@ -612,11 +620,8 @@ static void exportAllVmuSaves(const save_entry_t* save, int dev, int all)
 	list_t *list = ((void**)save->dir_name)[0];
 
 	_set_dest_path(out_dir, dev, DC_SAVES_PATH);
-	if (mkdirs(out_dir) != SUCCESS)
-	{
-		show_message("Error! Export folder is not available:\n%s", out_dir);
+	if (!check_export_dir(out_dir))
 		return;
-	}
 
 	init_progress_bar("Exporting saves...");
 
@@ -751,11 +756,8 @@ static void dumpVmuImage(const save_entry_t* save, int dev)
 	int ok, fmt;
 
 	_set_dest_path(out_dir, dev, DC_VMU_PATH);
-	if (mkdirs(out_dir) != SUCCESS)
-	{
-		show_message("Error! Export folder is not available:\n%s", out_dir);
+	if (!check_export_dir(out_dir))
 		return;
-	}
 
 	if ((image = malloc(VMUDEV_IMAGE_SIZE)) == NULL || (card = malloc(sizeof(vmu_card_t))) == NULL)
 	{
