@@ -305,7 +305,7 @@ static void enableWebServer(dWebReqHandler_t handler, void* data, int port)
 */
 }
 
-static void* ps2_host_callback(int id, int* size)
+static void* dc_host_callback(int id, int* size)
 {
 	memset(host_buf, 0, sizeof(host_buf));
 
@@ -411,7 +411,7 @@ static int apply_cheat_patches(const save_entry_t* entry)
 		else
 			snprintf(tmpfile, sizeof(tmpfile), "%s%s", entry->path, filename);
 
-		if (!apply_cheat_patch_code(tmpfile, entry->title_id, code, &ps2_host_callback))
+		if (!apply_cheat_patch_code(tmpfile, entry->title_id, code, &dc_host_callback))
 		{
 			LOG("Error: failed to apply (%s)", code->name);
 			ret = 0;
