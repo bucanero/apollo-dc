@@ -161,11 +161,21 @@ static rawImage_t *imgLoadPngFromFile(const char *path)
 	return img;
 }
 
+// next power of two, 8 at least (the smallest PVR texture size)
+static int pow2_size(int x)
+{
+	int p = 8;
+
+	while (p < x)
+		p <<= 1;
+
+	return p;
+}
+
 static void rawImageTexture(const rawImage_t *img, png_texture *tex)
 {
 	int count = img->width * img->height;
 	int translucent = 0;
-	SDL_Surface* surface;
 	uint16_t *ptr = (uint16_t *)img->datap;
 
 	// ARGB1555 keeps more colour but only 1 bit of alpha, which wipes out translucent
@@ -187,17 +197,55 @@ static void rawImageTexture(const rawImage_t *img, png_texture *tex)
 			ptr[i] = ((((pixel >> 24) & 0xFF) > 127) << 15) | (((pixel & 0xFF) >> 3) << 10) | (((pixel >> 11) & 0x1F) << 5) | ((pixel >> 19) & 0x1F);
 	}
 
-	if (translucent)
-		surface = SDL_CreateRGBSurfaceFrom(img->datap, img->width, img->height, 16, 2 * img->width, 0x0F00, 0x00F0, 0x000F, 0xF000);
-	else
-		surface = SDL_CreateRGBSurfaceFrom(img->datap, img->width, img->height, 16, 2 * img->width, 0x7C00, 0x03E0, 0x001F, 0x8000);
-
 	tex->width = img->width;
 	tex->height = img->height;
-	tex->texture = SDL_CreateTextureFromSurface(renderer, surface);
-	SDL_SetTextureBlendMode(tex->texture, SDL_BLENDMODE_BLEND);
+	tex->texture = CreateTexture16(ptr, img->width, img->height, translucent);
+}
+
+/*
+ * Creates a texture from 16-bit pixels (ARGB4444 if translucent, else ARGB1555),
+ * always padded to a power-of-two size (at least 8x8): draw it with a source rect of
+ * the real w x h.
+ *
+ * - A non-power-of-two texture would otherwise be padded by SDL and uploaded row by row,
+ *   and GLdc copies those rows to VRAM a byte at a time: real hardware doesn't take 8-bit
+ *   writes to texture memory, and the image comes out striped with wrong colours.
+ * - SDL would use a PVR "strided" texture when the width is a multiple of 32, but the
+ *   PVR has one stride register for the whole frame: with strided textures of different
+ *   widths (background, fonts, panels) all but one are sampled with the wrong stride.
+ */
+SDL_Texture* CreateTexture16(const uint16_t* data, int w, int h, int translucent)
+{
+	int tw = pow2_size(w), th = pow2_size(h);
+	const uint16_t *pixels = data;
+	uint16_t *padded = NULL;
+	SDL_Surface* surface;
+	SDL_Texture* texture;
+
+	if (tw != w || th != h)
+	{
+		padded = calloc(tw * th, sizeof(uint16_t));
+		if (!padded)
+			return NULL;
+
+		for (int y = 0; y < h; y++)
+			memcpy(padded + y * tw, data + y * w, w * sizeof(uint16_t));
+
+		pixels = padded;
+	}
+
+	if (translucent)
+		surface = SDL_CreateRGBSurfaceFrom((void*) pixels, tw, th, 16, 2 * tw, 0x0F00, 0x00F0, 0x000F, 0xF000);
+	else
+		surface = SDL_CreateRGBSurfaceFrom((void*) pixels, tw, th, 16, 2 * tw, 0x7C00, 0x03E0, 0x001F, 0x8000);
+
+	texture = SDL_CreateTextureFromSurface(renderer, surface);
+	SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 
 	SDL_FreeSurface(surface);
+	free(padded);
+
+	return texture;
 }
 
 int LoadRawIconTexture(uint8_t* icon, int idx)
@@ -467,8 +515,11 @@ void DrawTexture(png_texture* tex, int x, int y, int z, int w, int h, u32 rgba)
 		.h = h,
 	};
 
+	SDL_Rect src = { .w = tex->width, .h = tex->height };
+
+	// the texture may be padded: draw only the image
 	SDL_SetTextureAlphaMod(tex->texture, RGBA_A(rgba));
-	SDL_RenderCopy(renderer, tex->texture, NULL, &dest);
+	SDL_RenderCopy(renderer, tex->texture, (src.w && src.h) ? &src : NULL, &dest);
 }
 
 void DrawTextureCentered(png_texture* tex, int x, int y, int z, int w, int h, u32 rgba)
@@ -502,8 +553,10 @@ void DrawTextureRotated(png_texture* tex, int x, int y, int z, int w, int h, u32
 		.h = h,
 	};
 
+	SDL_Rect src = { .w = tex->width, .h = tex->height };
+
 	SDL_SetTextureAlphaMod(tex->texture, RGBA_A(rgba));
-	SDL_RenderCopyEx(renderer, tex->texture, NULL, &dest, angle, NULL, SDL_FLIP_NONE);
+	SDL_RenderCopyEx(renderer, tex->texture, (src.w && src.h) ? &src : NULL, &dest, angle, NULL, SDL_FLIP_NONE);
 }
 
 static int please_wait;
