@@ -12,6 +12,7 @@
 #include "dcsave.h"
 #include "vmu_dev.h"
 #include "vmu_card.h"
+#include "vmzip.h"
 
 #include <ctype.h>
 #include <fat/fs_fat.h>
@@ -453,9 +454,51 @@ static int apply_cheat_patches(const save_entry_t* entry)
 	return ret;
 }
 
+// Copy protection on/off (PATCH_SFO codes). The code then offers the opposite.
+static int apply_save_patches(save_entry_t* entry)
+{
+	code_entry_t* code;
+	list_node_t* node;
+	int ret = 1, protect;
+
+	for (node = list_head(entry->codes); (code = list_get(node)); node = list_next(node))
+	{
+		if (!code->activated || code->type != PATCH_SFO)
+			continue;
+
+		code->activated = 0;
+		if (code->codes[0] != SFO_UNLOCK_COPY && code->codes[0] != SFO_LOCK_COPY)
+			continue;
+
+		protect = (code->codes[0] == SFO_LOCK_COPY);
+		if (!vmucard_set_copyprotect(entry->path, entry->dir_name, protect))
+		{
+			ret = 0;
+			continue;
+		}
+
+		if (protect)
+			entry->flags |= SAVE_FLAG_LOCKED;
+		else
+			entry->flags &= ~SAVE_FLAG_LOCKED;
+
+		free(code->name);
+		asprintf(&code->name, "%c %s", CHAR_TAG_LOCKED, protect ? "Unlock save (remove copy protection)" : "Lock save (copy protect)");
+		code->codes[0] = protect ? SFO_UNLOCK_COPY : SFO_LOCK_COPY;
+	}
+
+	return ret;
+}
+
 static void resignSave(save_entry_t* entry)
 {
     LOG("Resigning save '%s'...", entry->name);
+
+    if (!apply_save_patches(entry))
+    {
+        show_message("Error! Couldn't change the save's copy protection");
+        return;
+    }
 
     LOG("Applying cheats to '%s'...", entry->name);
     if (!apply_cheat_patches(entry))
@@ -901,6 +944,223 @@ static int deleteSave(const save_entry_t* save)
 	return ret;
 }
 
+/*
+ * VMZip (see vmzip.h). Both directions write plain data files: VMZIPDAT.NNN
+ * when compressing, the original name when decompressing. Each returns 1 if
+ * the source file was deleted afterwards (the save menu has nothing left to show).
+ *
+ * The format has no room for the save's date, so the VMZip file itself carries
+ * it: VMZIPDAT.NNN gets the original save's timestamp, and unpacking gives it
+ * back. VMZip 1.0 ignores it (its files carry the time they were made).
+ */
+
+// The next free VMZIPDAT.NNN on a card: one past the highest in use, as VMZip numbers them
+static int vmzip_next_name(const char* vmu_path, char* name, size_t size)
+{
+	vmudev_file_t* files;
+	vmu_dirent_t ent;
+	int count, ext = 0;
+
+	if (!vmucard_scan(vmu_path, &files, &count))
+		return 0;
+
+	for (int i = 0; i < count; i++)
+	{
+		vmu_dirent_decode(files[i].dirent, &ent);
+		if (vmzip_name_ext(ent.filename) > ext)
+			ext = vmzip_name_ext(ent.filename);
+	}
+	free(files);
+
+	if (ext >= VMZIP_MAX_EXT)
+		return 0;
+
+	snprintf(name, size, VMZIP_PREFIX "%03u", (unsigned)(ext + 1) % 1000u);
+	return 1;
+}
+
+// A new data file's directory entry: no copy protection, header at block 0
+static void vmzip_dirent(const char* name, size_t len, const vmu_timestamp_t* ts, uint8_t raw[VMUDEV_DIRENT_SIZE])
+{
+	vmu_dirent_t ent;
+
+	memset(&ent, 0, sizeof(ent));
+	ent.filetype = VMU_FILE_DATA;
+	ent.copyprotect = VMU_COPY_OK;
+	snprintf(ent.filename, sizeof(ent.filename), "%s", name);
+	ent.timestamp = *ts;
+	ent.filesize = len / VMU_BLOCK_SIZE;
+	vmu_dirent_encode(&ent, raw);
+}
+
+// Free blocks on a card once `name` (if it's there) is replaced
+static int vmzip_room(const char* vmu_path, const char* name)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+	vmu_dirent_t ent;
+	int free_blocks = vmucard_free_blocks(vmu_path);
+
+	if (name && vmucard_find(vmu_path, name, raw))
+	{
+		vmu_dirent_decode(raw, &ent);
+		free_blocks += ent.filesize;
+	}
+
+	return free_blocks;
+}
+
+static int vmzip_delete_source(const save_entry_t* save, const char* dst, const char* what)
+{
+	int ret;
+
+	if (strcmp(dst, save->path) != 0 ||
+		!show_dialog(DIALOG_TYPE_YESNO, "Delete the %s save %s\nfrom %s?", what, save->dir_name, save->path))
+		return 0;
+
+	init_loading_screen("Deleting save...");
+	ret = vmu_save_delete(save);
+	stop_loading_screen();
+
+	if (!ret)
+		show_message("Error! Couldn't delete save:\n%s", save->dir_name);
+
+	return ret;
+}
+
+static int compressVmuSave(const save_entry_t* save, const char* dst)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+	uint8_t *data, *zip;
+	size_t len, zip_len;
+	vmu_dirent_t ent;
+	char zip_name[VMU_NAME_LEN + 1];
+	int ret, room;
+
+	if (!vmucard_read(save->path, save->dir_name, raw, &data, &len))
+	{
+		show_message("Error! Couldn't read save:\n%s", save->dir_name);
+		return 0;
+	}
+
+	vmu_dirent_decode(raw, &ent);
+	if (ent.filetype == VMU_FILE_GAME)
+	{
+		free(data);
+		show_message("Error! VMU mini-games can't be compressed:\n%s", save->dir_name);
+		return 0;
+	}
+
+	init_loading_screen("Compressing save...");
+	ret = vmzip_pack(ent.filename, data, len, &zip, &zip_len);
+	stop_loading_screen();
+	free(data);
+
+	if (!ret)
+	{
+		show_message("Error! Couldn't compress save:\n%s", save->dir_name);
+		return 0;
+	}
+
+	if (zip_len >= len && !show_dialog(DIALOG_TYPE_YESNO, "VMZip doesn't make %s smaller\n(%d blocks, %d compressed)\n\nCompress it anyway?",
+		save->dir_name, (int)(len / VMU_BLOCK_SIZE), (int)(zip_len / VMU_BLOCK_SIZE)))
+	{
+		free(zip);
+		return 0;
+	}
+
+	if (!vmzip_next_name(dst, zip_name, sizeof(zip_name)))
+	{
+		free(zip);
+		show_message("Error! Couldn't find a free VMZip file name on %s", dst);
+		return 0;
+	}
+
+	if ((room = vmzip_room(dst, NULL)) < (int)(zip_len / VMU_BLOCK_SIZE))
+	{
+		free(zip);
+		show_message("Error! Not enough free blocks on %s\n(%d needed, %d free)", dst, (int)(zip_len / VMU_BLOCK_SIZE), room);
+		return 0;
+	}
+
+	vmzip_dirent(zip_name, zip_len, &ent.timestamp, raw);
+	init_loading_screen("Writing VMZip save...");
+	ret = vmucard_write(dst, raw, zip, zip_len);
+	stop_loading_screen();
+	free(zip);
+
+	if (!ret)
+	{
+		show_message("Error! Couldn't write %s to %s", zip_name, dst);
+		return 0;
+	}
+
+	LOG("VMZip: %s%s (%d blocks) -> %s%s (%d blocks)", save->path, save->dir_name, (int)(len / VMU_BLOCK_SIZE),
+		dst, zip_name, (int)(zip_len / VMU_BLOCK_SIZE));
+	show_message("Save compressed to:\n%s%s\n\n%d blocks -> %d blocks", dst, zip_name,
+		(int)(len / VMU_BLOCK_SIZE), (int)(zip_len / VMU_BLOCK_SIZE));
+
+	return vmzip_delete_source(save, dst, "original");
+}
+
+static int decompressVmuSave(const save_entry_t* save, const char* dst)
+{
+	uint8_t raw[VMUDEV_DIRENT_SIZE];
+	uint8_t *data, *out;
+	size_t len, out_len;
+	vmu_dirent_t ent;
+	char name[VMU_NAME_LEN + 1];
+	int ret, room;
+
+	if (!vmucard_read(save->path, save->dir_name, raw, &data, &len))
+	{
+		show_message("Error! Couldn't read save:\n%s", save->dir_name);
+		return 0;
+	}
+	vmu_dirent_decode(raw, &ent);
+
+	init_loading_screen("Decompressing save...");
+	ret = vmzip_unpack(data, len, name, &out, &out_len);
+	stop_loading_screen();
+	free(data);
+
+	if (!ret)
+	{
+		show_message("Error! Not a valid VMZip save:\n%s", save->dir_name);
+		return 0;
+	}
+
+	if (vmu_target_has(dst, name) &&
+		!show_dialog(DIALOG_TYPE_YESNO, "%s already exists on %s\nOverwrite it?", name, dst))
+	{
+		free(out);
+		return 0;
+	}
+
+	if ((room = vmzip_room(dst, name)) < (int)(out_len / VMU_BLOCK_SIZE))
+	{
+		free(out);
+		show_message("Error! Not enough free blocks on %s\n(%d needed, %d free)", dst, (int)(out_len / VMU_BLOCK_SIZE), room);
+		return 0;
+	}
+
+	vmzip_dirent(name, out_len, &ent.timestamp, raw);
+	init_loading_screen("Writing save...");
+	ret = vmucard_write(dst, raw, out, out_len);
+	stop_loading_screen();
+	free(out);
+
+	if (!ret)
+	{
+		show_message("Error! Couldn't write %s to %s", name, dst);
+		return 0;
+	}
+
+	LOG("VMZip: %s%s -> %s%s (%d blocks)", save->path, save->dir_name, dst, name, (int)(out_len / VMU_BLOCK_SIZE));
+	show_message("Save decompressed to:\n%s%s", dst, name);
+
+	return vmzip_delete_source(save, dst, "VMZip");
+}
+
 static void downloadLink(const char* path)
 {
 	char url[256] = "http://";
@@ -971,6 +1231,16 @@ void execCodeCommand(code_entry_t* code, const char* codecmd)
 		case CMD_EXP_VMU_IMAGE:
 			dumpVmuImage(selected_entry, codecmd[1]);
 			code->activated = 0;
+			break;
+
+		case CMD_VMZIP_PACK:
+		case CMD_VMZIP_UNPACK:
+			// the card the save is on has a new file: its list must be re-read
+			if (strcmp(codecmd + 2, selected_entry->path) == 0)
+				selected_entry->flags |= SAVE_FLAG_UPDATED;
+			// stays activated if the source save was deleted (see doCodeOptionsMenu)
+			code->activated = (codecmd[0] == CMD_VMZIP_PACK) ?
+				compressVmuSave(selected_entry, codecmd + 2) : decompressVmuSave(selected_entry, codecmd + 2);
 			break;
 
 		case CMD_DELETE_SAVE:

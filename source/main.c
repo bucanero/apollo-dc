@@ -13,9 +13,11 @@
 #include "common.h"
 #include "dcpad.h"
 #include "vmu_dev.h"
+#include "buk_icon.h"
 
 #include <dc/sd.h>
 #include <dc/sci.h>
+#include <dc/maple/vmu.h>
 #include <fat/fs_fat.h>
 
 //Font
@@ -568,6 +570,9 @@ int main(int argc, char *argv[])
 #endif
 	dbglogger_init_mode(TTY_LOGGER, NULL, 0);
 
+	// Bucanero's pixel art on the screen of every VMU plugged in
+	vmu_set_icon(buk_icon_xpm);
+
 	// Initialize SDL functions
 	LOG("Initializing SDL");
 	// the Dreamcast SDL2 port defaults to a plain framebuffer (DMA) video mode with no OpenGL:
@@ -622,16 +627,7 @@ int main(int argc, char *argv[])
 	// Load application settings
 	load_app_settings(&apollo_config);
 
-	// Unpack application data on first run
-	if (file_exists(APOLLO_LOCAL_CACHE "appdata.zip") == SUCCESS)
-	{
-//		clean_directory(APOLLO_DATA_PATH);
-		if (extract_zip(APOLLO_LOCAL_CACHE "appdata.zip", APOLLO_DATA_PATH))
-			show_message("Successfully installed local application data");
-
-		unlink_secure(APOLLO_LOCAL_CACHE "appdata.zip");
-	}
-
+	// dedicated to Leon ~ in loving memory (2009 - 2022)
 	// dedicated to Luna ~ in loving memory (2011 - 2023)
 	// Splash screen logo (fade-in)
 	drawSplashLogo(1);

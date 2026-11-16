@@ -298,3 +298,16 @@ int vmucard_delete(const char* path, const char* name)
 
 	return (vmu_delete_file(card, idx) == VMU_OK) && save_image();
 }
+
+int vmucard_set_copyprotect(const char* path, const char* name, int protect)
+{
+	int idx;
+
+	if (vmucard_is_device(path))
+		return vmudev_set_copyprotect(path, name, protect);
+
+	if (!image(path) || (idx = vmu_find(card, name)) < 0)
+		return 0;
+
+	return (vmu_set_copyprotect(card, idx, protect) == VMU_OK) && save_image();
+}

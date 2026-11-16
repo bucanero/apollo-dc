@@ -57,4 +57,7 @@ int vmudev_dump(const char* path, uint8_t* image, void (*progress)(int done, int
 /* Delete a file by name (trimmed). Returns 1 on success. */
 int vmudev_delete(const char* path, const char* name);
 
+/* Set or clear a file's copy protection flag (directory entry only) */
+int vmudev_set_copyprotect(const char* path, const char* name, int protect);
+
 #endif
