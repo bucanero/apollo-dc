@@ -6,7 +6,7 @@
 #define APOLLO_APP_PATH			"mass:/APOLLO/"
 #define APOLLO_USER_PATH		USB_PATH "PS2/EXPORT/"
 #define APOLLO_DATA_PATH		"/cd/APOLLO/DATA/"      // read-only app data on the disc: dctitleid.txt, *.savepatch
-#define APOLLO_LOCAL_CACHE		APOLLO_APP_PATH "CACHE/"
+#define APOLLO_LOCAL_CACHE		"/ram/"                // downloads and the online Saves DB cache (RAM disk)
 #define APOLLO_UPDATE_URL		"https://api.github.com/repos/bucanero/apollo-psp/releases/latest"
 
 #define MAX_USB_DEVICES         5
@@ -219,6 +219,7 @@ int ReadOnlineSaves(save_entry_t * game);
 int ReadBackupCodes(save_entry_t * bup);
 
 int network_up(void);
+int find_local_savedb(char* path);
 int http_init(void);
 void http_end(void);
 int http_download(const char* url, const char* filename, const char* local_dst, int show_progress);
@@ -232,12 +233,13 @@ int zip_append_directory(const char* basedir, const char* inputdir, const char* 
 int show_dialog(int dialog_type, const char * format, ...);
 int show_multi_dialog(const char** options, const char * msg);
 int osk_dialog_get_text(const char* title, char* text, uint32_t size);
-void init_progress_bar(const char* msg);
+int init_progress_bar(const char* msg);
 void update_progress_bar(uint64_t progress, const uint64_t total_size, const char* msg);
 void end_progress_bar(void);
 #define show_message(...)	show_dialog(DIALOG_TYPE_OK, __VA_ARGS__)
 
 int init_loading_screen(const char* msg);
+int is_loading_screen_active(void);
 void stop_loading_screen(void);
 
 void execCodeCommand(code_entry_t* code, const char* codecmd);

@@ -606,6 +606,11 @@ int init_loading_screen(const char* message)
 	return (tid != NULL);
 }
 
+int is_loading_screen_active(void)
+{
+	return (tid != NULL);
+}
+
 void stop_loading_screen(void)
 {
     if (please_wait != 1)

@@ -48,6 +48,14 @@ jobs:
           sed -i "s/^CMAKE_ARGS = .*/CMAKE_ARGS =        -DCMAKE_BUILD_TYPE=Release -DBUILD_SAMPLES=OFF -DBUILD_TESTS=OFF/" Makefile
           make install clean
           cd ..
+          # mbedTLS with an entropy hook: the Dreamcast has no RNG, so the app provides
+          # mbedtls_hardware_poll() (source/http.c); without one, TLS can't start.
+          # The archive left real header folders behind: remove them so the ports can link theirs
+          rm -rf include/mbedtls include/psa include/curl
+          sed -i "s|^//#define MBEDTLS_ENTROPY_HARDWARE_ALT|#define MBEDTLS_ENTROPY_HARDWARE_ALT|" mbedtls/files/mbedtls_config.h
+          make -C mbedtls force-install clean
+          # curl (https through mbedTLS), rebuilt against that mbedTLS
+          make -C curl force-install clean
 #          cd zlib
 #          make install
 #          cd ../polarssl

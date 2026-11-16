@@ -12,6 +12,7 @@
 
 int init_loading_screen(const char* msg);
 void stop_loading_screen(void);
+int is_loading_screen_active(void);
 
 static char progress_bar[128];
 
@@ -112,13 +113,19 @@ int show_multi_dialog(const char** options, const char * msg)
     return (sel);
 }
 
-void init_progress_bar(const char* msg)
+// Returns 0 (and changes nothing) if a loading screen is already showing
+int init_progress_bar(const char* msg)
 {
+    if (is_loading_screen_active())
+        return 0;
+
     SetExtraSpace(0);
     SetCurrentFont(font_console_8x16);
     strncpy(progress_bar, msg, sizeof(progress_bar) - 1);
     init_loading_screen(progress_bar);
     SetFontSize(8, 16);
+
+    return 1;
 }
 
 void end_progress_bar(void)

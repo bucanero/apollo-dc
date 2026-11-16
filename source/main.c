@@ -374,8 +374,8 @@ void update_vmc_path(char* path)
 	path[0] = 0;
 }
 
-// Saves DB: the copy on the disc, else one on the SD card or the PC (dcload), else the online one
-void update_db_path(char* path)
+// A local Saves DB: the copy on the disc, else one on the SD card or the PC (dcload)
+int find_local_savedb(char* path)
 {
 	const char* local[] = {"/cd/", USB_PATH, HOST_PATH, NULL};
 
@@ -386,11 +386,20 @@ void update_db_path(char* path)
 		{
 			snprintf(path, 128, "%s" SAVEDB_PATH, local[i]);
 			LOG("Saves DB found at %s", path);
-			return;
+			return 1;
 		}
 	}
 
-	strcpy(path, apollo_config.save_db);
+	path[0] = 0;
+	return 0;
+}
+
+// Saves DB: the online one when there's a network connection (the list falls
+// back to a local copy if it can't be downloaded), else the local copy
+void update_db_path(char* path)
+{
+	if (network_up() || !find_local_savedb(path))
+		strcpy(path, apollo_config.save_db);
 }
 
 static void registerSpecialChars(void)

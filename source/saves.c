@@ -214,14 +214,37 @@ static option_entry_t* _createStorageOptions(const char* name, char cmd)
 	return options;
 }
 
+// Listing the VMUs reads each one's free blocks over maple (~50 ms per VMU): while a list
+// with many entries is built (online saves), it's done once and reused
+static struct {
+	int count;		// -1: not listed yet
+	int cached;
+	char paths[MAX_VMU_DEVICES][VMUDEV_PATH_LEN];
+	char names[MAX_VMU_DEVICES][VMUDEV_NAME_LEN];
+} vmu_list = { .count = -1 };
+
+static void _cacheVmuList(int enable)
+{
+	vmu_list.cached = enable;
+	vmu_list.count = -1;
+}
+
+static int _listVmus(void)
+{
+	if (!vmu_list.cached || vmu_list.count < 0)
+		vmu_list.count = vmudev_list(vmu_list.paths, vmu_list.names, MAX_VMU_DEVICES);
+
+	return vmu_list.count;
+}
+
 // Every other VMU plugged in; the value is {cmd, STORAGE_VMU, "/vmu/xN/"}. NULL if there is none.
 static option_entry_t* _createVmuOptions(const char* name, char cmd, const char* exclude)
 {
-	char paths[MAX_VMU_DEVICES][VMUDEV_PATH_LEN];
-	char names[MAX_VMU_DEVICES][VMUDEV_NAME_LEN];
+	char (*paths)[VMUDEV_PATH_LEN] = vmu_list.paths;
+	char (*names)[VMUDEV_NAME_LEN] = vmu_list.names;
 	char label[128], value[2 + VMUDEV_PATH_LEN];
 	option_entry_t* options = NULL;
-	int count = vmudev_list(paths, names, MAX_VMU_DEVICES);
+	int count = _listVmus();
 
 	for (int i = 0; i < count; i++)
 	{
@@ -660,9 +683,9 @@ int ReadOnlineSaves(save_entry_t * game)
 			stat(path, &stats);
 			// re-download if file is +1 day old
 			if ((stats.st_mtime + ONLINE_CACHE_TIMEOUT) < time(NULL))
-				http_download(game->path, "saves.txt", path, 0);
+				http_download(game->path, "saves.txt", path, 1);
 		}
-		else if (!http_download(game->path, "saves.txt", path, 0))
+		else if (!http_download(game->path, "saves.txt", path, 1))
 			return 0;
 	}
 
@@ -675,6 +698,7 @@ int ReadOnlineSaves(save_entry_t * game)
 	char *end = data + fsize;
 
 	game->codes = list_alloc();
+	_cacheVmuList(1);
 
 	while (ptr < end && *ptr)
 	{
@@ -711,6 +735,7 @@ int ReadOnlineSaves(save_entry_t * game)
 		}
 	}
 
+	_cacheVmuList(0);
 	free(data);
 	LOG("Loaded %d saves", list_count(game->codes));
 
@@ -1304,6 +1329,13 @@ list_t * ReadOnlineList(const char* urlPath)
 	// DC save-games (Zip VMI/VMS): a local DB path already points at the DC folder
 	snprintf(url, sizeof(url), (urlPath[0] == '/') ? "%s" : "%sDC/", urlPath);
 	_ReadOnlineListEx(url, SAVE_FLAG_DC, list);
+
+	// the online DB couldn't be read: use a local copy (disc, SD, PC) if there's one
+	if (!list_count(list) && urlPath[0] != '/' && find_local_savedb(url))
+	{
+		LOG("Online Saves DB not available, using %s", url);
+		_ReadOnlineListEx(url, SAVE_FLAG_DC, list);
+	}
 
 	if (!list_count(list))
 	{
