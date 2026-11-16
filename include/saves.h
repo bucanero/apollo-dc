@@ -94,6 +94,11 @@ enum cmd_code_enum
     CMD_VMZIP_UNPACK,
 };
 
+// Save patches (PATCH_SFO codes), applied with "Apply Changes"
+enum sfo_patch_enum
+{
+    SFO_UNLOCK_COPY = 1,    // clear the VMU copy protection flag
+    SFO_LOCK_COPY,          // set it
 };
 
 // Save flags
