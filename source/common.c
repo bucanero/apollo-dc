@@ -13,11 +13,6 @@
 
 #define TMP_BUFF_SIZE 0x20000
 
-int http_download()
-{
-    return 0;
-}
-
 int chmod(const char *path, mode_t mode)
 {
     return 0;

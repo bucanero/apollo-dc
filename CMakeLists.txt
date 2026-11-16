@@ -82,6 +82,7 @@ add_executable(${PROJECT_NAME}
   source/vmu_dev.c
   source/vmu_card.c
   source/zip_util.c
+  source/http.c
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -90,6 +91,9 @@ target_link_libraries(${PROJECT_NAME}
   pthread
   GL
   apollo
+  mbedtls
+  mbedx509
+  mbedcrypto
   polarssl
   dbglogger
   freetype
