@@ -154,19 +154,15 @@ u8 * AddFontFromBitmapArray(u8 *font, u8 *texture, u8 first_char, u8 last_char, 
             font += (((w+7) & ~7) * bits_per_pixel) / 8;
         }
 
-        // Black font texture
-        SDL_Surface* surface = SDL_CreateRGBSurfaceFrom((void*) buf, w, h, 16, 2 * w, 0x7C00, 0x03E0, 0x001F, 0x8000);
-        *((SDL_Texture**) texture) = SDL_CreateTextureFromSurface(renderer, surface);
-        SDL_FreeSurface(surface);
+        // Black font texture (padded to a power of two: see CreateTexture16)
+        *((SDL_Texture**) texture) = CreateTexture16(buf, w, h, 0);
         texture += sizeof(SDL_Texture*);
 
         // White font texture
         for (a = 0; a < h*w; a++)
             if (buf[a]) buf[a] = 0xFFFF;
 
-        surface = SDL_CreateRGBSurfaceFrom((void*) buf, w, h, 16, 2 * w, 0x7C00, 0x03E0, 0x001F, 0x8000);
-        *((SDL_Texture**) texture) = SDL_CreateTextureFromSurface(renderer, surface);
-        SDL_FreeSurface(surface);
+        *((SDL_Texture**) texture) = CreateTexture16(buf, w, h, 0);
         texture += sizeof(SDL_Texture*);
     }
 
@@ -404,9 +400,11 @@ void orbis2dDrawChar(float x, float y, const u8* bitmap, int bw, int bh, int dw,
         .w = dw,
         .h = dh,
     };
+    // the glyph texture is padded: draw only the glyph
+    SDL_Rect src = { .w = bw, .h = bh };
 
     SDL_SetTextureAlphaMod(sdl_tex, RGBA_A(rgba));
-    SDL_RenderCopy(renderer, sdl_tex, NULL, &dest);
+    SDL_RenderCopy(renderer, sdl_tex, &src, &dest);
 }
 
 void DrawCharMono(float x, float y, float z, u8 chr)

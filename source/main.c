@@ -1,5 +1,5 @@
 /* 
-	Apollo PSP main.c
+	Apollo Dreamcast main.c
 */
 
 #include <stdio.h>
@@ -553,69 +553,6 @@ static int initInternal(void)
 	return 1;
 }
 
-static int initialize_vitashell_modules()
-{
-	/*
-	SceUID kern_modid, user_modid;
-	char module_path[60] = {0};
-	int search_unk[2];
-	int res = 0;
-
-	// Load kernel module
-	if (_vshKernelSearchModuleByName("VitaShellKernel2", search_unk) < 0)
-	{
-		snprintf(module_path, sizeof(module_path), "ux0:VitaShell/module/kernel.skprx");
-		if (file_exists(module_path) != SUCCESS)
-		{
-			snprintf(module_path, sizeof(module_path), APOLLO_APP_PATH "sce_module/kernel.skprx");
-			if (file_exists(module_path) != SUCCESS)
-			{
-				LOG("Kernel module not found!");
-				return 0;
-			}
-		}
-
-		kern_modid = taiLoadKernelModule(module_path, 0, NULL);
-		if (kern_modid >= 0)
-		{
-			res = taiStartKernelModule(kern_modid, 0, NULL, 0, NULL, NULL);
-			if (res < 0)
-				taiStopUnloadKernelModule(kern_modid, 0, NULL, 0, NULL, NULL);
-		}
-
-		if (kern_modid < 0 || res < 0)
-		{
-			LOG("Kernel module load error: %x\nPlease reboot.", kern_modid);
-			return 0;
-		}
-	}
-
-	// Load user module
-	snprintf(module_path, sizeof(module_path), "ux0:VitaShell/module/user.suprx");
-	if (file_exists(module_path) != SUCCESS)
-	{
-		snprintf(module_path, sizeof(module_path), APOLLO_APP_PATH "sce_module/user.suprx");
-		if (file_exists(module_path) != SUCCESS)
-		{
-			LOG("User module not found!");
-			return 0;
-		}
-	}
-
-	user_modid = sceKernelLoadStartModule(module_path, 0, NULL, 0, NULL, NULL);
-	if (user_modid < 0)
-	{
-		LOG("User module load %s error: %x\nPlease reboot.", module_path, user_modid);
-		return 0;
-	}
-
-	// Allow writing to ux0:app/NP0APOLLO
-	sceAppMgrUmount("app0:");
-	sceAppMgrUmount("savedata0:");
-*/
-    return 1;
-}
-
 /*
 	Program start
 */
@@ -649,13 +586,6 @@ int main(int argc, char *argv[])
 //	http_init();
 	initPad();
 
-	// Open a handle to audio output device
-	if (0)
-	{
-		LOG("[ERROR] Failed to load module: AHX");
-		return (-1);
-	}
-
 	// Create a window context
 	LOG("Creating a window");
 	window = SDL_CreateWindow("main", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_FULLSCREEN);
@@ -671,9 +601,10 @@ int main(int argc, char *argv[])
 		return (-1);
 	}
 
-	// Initialize jailbreak
-	if (!initialize_vitashell_modules())
-		LOG("Error loading VitaShell modules!");
+	// GLdc renders polygons without blending in the PVR opaque list, which is drawn before
+	// the translucent one (all textures): filled rects would end up behind the background.
+	// Blending keeps them in the translucent list, drawn in submission order.
+	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
 	mkdirs(APOLLO_DATA_PATH);
 	mkdirs(APOLLO_LOCAL_CACHE);
