@@ -233,12 +233,13 @@ int zip_append_directory(const char* basedir, const char* inputdir, const char* 
 int show_dialog(int dialog_type, const char * format, ...);
 int show_multi_dialog(const char** options, const char * msg);
 int osk_dialog_get_text(const char* title, char* text, uint32_t size);
-void init_progress_bar(const char* msg);
+int init_progress_bar(const char* msg);
 void update_progress_bar(uint64_t progress, const uint64_t total_size, const char* msg);
 void end_progress_bar(void);
 #define show_message(...)	show_dialog(DIALOG_TYPE_OK, __VA_ARGS__)
 
 int init_loading_screen(const char* msg);
+int is_loading_screen_active(void);
 void stop_loading_screen(void);
 
 void execCodeCommand(code_entry_t* code, const char* codecmd);

@@ -115,9 +115,12 @@ int http_download(const char* url, const char* filename, const char* local_dst, 
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, fwrite);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, fd);
 
+	// no progress bar inside another loading screen (e.g. "Loading saves...")
+	if (show_progress)
+		show_progress = init_progress_bar("Downloading...");
+
 	if (show_progress)
 	{
-		init_progress_bar("Downloading...");
 		curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, &update_progress);
 		curl_easy_setopt(curl, CURLOPT_XFERINFODATA, (void*) full_url);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
