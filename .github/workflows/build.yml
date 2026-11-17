@@ -4,12 +4,26 @@ on: [push, pull_request]
 
 env:
   BUILD_TYPE: Release
+  # Every dependency is pinned to the versions of the known-good local build (bba-net 27c9efc,
+  # tested on real hardware). Following branch heads broke the build once: GPF/SDL 59c7967
+  # dropped the OpenGL renderer by default and the app couldn't create its renderer.
+  # Bump these on purpose, and test the result on real hardware.
+  KOS_COMMIT: d81aa3fda0520b6ca64098ce9d1d43e7562142d9          # KallistiOS master, 2026-10-27
+  KOS_PORTS_COMMIT: f4faacc42faaf552625777b7709e871a827e1055    # kos-ports master, 2026-07-14
+  GLDC_COMMIT: d32a07cff0ce2954c8981b3e5092039e6e3b9776         # GLdc (libGL port) 1.1-726-gd32a
+  SDL_COMMIT: 10f41e6820708efc74fb194db7d49bcc07a0b7e7          # GPF/SDL dreamcastSDL2, 2026-09-13
+  APOLLO_LIB_COMMIT: 046f12a58af8dc3f8b51732eb688eeb5432891a5   # apollo-lib "v3 update for dc / ps2 (#80)"
+  MKDCDISC_COMMIT: 2b98b0d9480e364e3517355648fbc3b49fb19882     # mkdcdisc
+  ARCHIVE_URL: https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17
+  ARCHIVE_KOS_PORTS_SHA256: a14d10f91241b7eedf6da6a01406916862e55cb5d1e0db1897cf02f8905b5c76
+  ARCHIVE_ADDONS_SHA256: 41f6eb415664b42c0723374477bc414070222074eaeec03b6a64d16ad9549559
 
 jobs:
   dc:
     name: Dreamcast Build (KOS)
     runs-on: ubuntu-latest
-    container: pcercuei/dreamcast-toolchain:15.2.1-dev
+    # 15.2.1-dev, pinned by digest (the tag can be re-pushed)
+    container: pcercuei/dreamcast-toolchain@sha256:015d2e42c6842fb404f3357916a037158831124d2153f6f0356515f55cd1b565
 
     steps:
       - uses: actions/checkout@v4
@@ -18,12 +32,22 @@ jobs:
         run: |
           apk update
           apk add gmp mpc1 mpfr4 make cmake git bash curl meson ninja build-base pkgconf libisofs-dev libpng-dev
+          # clone_at <url> <commit> <dir>: check out exactly that commit
+          clone_at() {
+            git init -q "$3"
+            git -C "$3" remote add origin "$1"
+            git -C "$3" fetch -q --depth 1 origin "$2"
+            git -C "$3" checkout -q FETCH_HEAD
+            echo "$3: $(git -C "$3" rev-parse HEAD)"
+          }
           git clone https://github.com/bucanero/dbglogger
-          git clone --depth 1 https://github.com/bucanero/apollo-lib
-          git clone --depth 1 --branch dreamcastSDL2 https://github.com/GPF/SDL
-          git clone --depth 1 https://github.com/KallistiOS/KallistiOS.git -b master /opt/toolchains/dc/kos
-          git clone --depth 1 --recursive https://github.com/KallistiOS/kos-ports /opt/toolchains/dc/kos-ports
-          git clone --depth 1 https://gitlab.com/simulant/mkdcdisc.git /opt/mkdcdisc
+          clone_at https://github.com/bucanero/apollo-lib $APOLLO_LIB_COMMIT apollo-lib
+          clone_at https://github.com/GPF/SDL $SDL_COMMIT SDL
+          rm -rf /opt/toolchains/dc/kos /opt/toolchains/dc/kos-ports
+          clone_at https://github.com/KallistiOS/KallistiOS.git $KOS_COMMIT /opt/toolchains/dc/kos
+          clone_at https://github.com/KallistiOS/kos-ports $KOS_PORTS_COMMIT /opt/toolchains/dc/kos-ports
+          git -C /opt/toolchains/dc/kos-ports submodule update --init --recursive --depth 1
+          clone_at https://gitlab.com/simulant/mkdcdisc.git $MKDCDISC_COMMIT /opt/mkdcdisc
           # disc contents: only the Dreamcast parts of the save and patch databases
           git clone --depth 1 --filter=blob:none --sparse https://github.com/bucanero/apollo-saves ../apollo-saves
           git -C ../apollo-saves sparse-checkout set DC
@@ -42,10 +66,14 @@ jobs:
           . /opt/toolchains/dc/kos/environ.sh
           cd /opt/toolchains/dc/kos-ports
           # prebuilt ports: zlib, libpng, libzip, freetype, curl, polarssl, apollo-lib, dbglogger, ...
-          curl -sL https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17/archive_kos-ports.tar.gz | tar xz -C ./
-          # the archived GLdc is outdated: build the latest one (ARGB4444 textures, for the translucent panels)
+          curl -sL -o /tmp/archive_kos-ports.tar.gz $ARCHIVE_URL/archive_kos-ports.tar.gz
+          echo "$ARCHIVE_KOS_PORTS_SHA256  /tmp/archive_kos-ports.tar.gz" | sha256sum -c -
+          tar xzf /tmp/archive_kos-ports.tar.gz -C ./
+          # the archived GLdc is outdated: build a newer one (ARGB4444 textures, for the translucent panels)
           cd libGL
           sed -i "s/^CMAKE_ARGS = .*/CMAKE_ARGS =        -DCMAKE_BUILD_TYPE=Release -DBUILD_SAMPLES=OFF -DBUILD_TESTS=OFF/" Makefile
+          # the port follows GLdc master: pin it (kos-ports resets the clone to GIT_CHANGESET)
+          echo "GIT_CHANGESET =     $GLDC_COMMIT" >> Makefile
           make install clean
           cd ..
           # mbedTLS with an entropy hook: the Dreamcast has no RNG, so the app provides
@@ -77,13 +105,16 @@ jobs:
         run: |
           . /opt/toolchains/dc/kos/environ.sh
           cd /opt/toolchains/dc/kos/addons
-          curl -sL https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17/archive_addons.tar.gz | tar xz -C ./
+          curl -sL -o /tmp/archive_addons.tar.gz $ARCHIVE_URL/archive_addons.tar.gz
+          echo "$ARCHIVE_ADDONS_SHA256  /tmp/archive_addons.tar.gz" | sha256sum -c -
+          tar xzf /tmp/archive_addons.tar.gz -C ./
           # the archived libkosfat was built against another KOS revision: rebuild it against this one
           make -C libkosfat clean
           make -C libkosfat
-          # replace the archived SDL2 with the latest dreamcastSDL2 branch, built against the new GLdc
+          # replace the archived SDL2 with the pinned dreamcastSDL2 commit, built against the new GLdc.
+          # The app uses SDL's OpenGL (GLdc) renderer: ask for it explicitly, newer SDL drops it by default
           cd $GITHUB_WORKSPACE/SDL/build-scripts
-          bash ./dreamcast.sh install
+          bash ./dreamcast.sh --enable-opengl install
 
       - name: build dbglogger
         run: |
