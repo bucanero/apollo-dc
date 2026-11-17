@@ -1231,13 +1231,20 @@ list_t * ReadUserList(const char* userPath)
 		int orig_blocks, vmzip = vmzip_is_vmzip(ent.filename) && files[i].has_header &&
 			vmzip_header_info(files[i].header, VMUDEV_HEADER_SIZE, orig_name, &orig_blocks);
 
-		// a VMZip file is shown as the save it holds, and grouped with that game
+		// a VMZip file is titled after the save it holds, but keeps its own file name (VMZIPDAT.NNN)
+		// as the ID: it has no patches, and the name is what's on the card
 		if (vmzip)
+		{
 			snprintf(title, sizeof(title), "%s (%d blocks)", orig_name, orig_blocks);
-		else if (!files[i].has_header || !dc_header_title(files[i].header, title, sizeof(title)))
-			snprintf(title, sizeof(title), "%s", ent.filename);
+			snprintf(patch_id, sizeof(patch_id), "%s", ent.filename);
+		}
+		else
+		{
+			if (!files[i].has_header || !dc_header_title(files[i].header, title, sizeof(title)))
+				snprintf(title, sizeof(title), "%s", ent.filename);
 
-		dc_get_patch_id(titleid_db, vmzip ? orig_name : ent.filename, patch_id, sizeof(patch_id));
+			dc_get_patch_id(titleid_db, ent.filename, patch_id, sizeof(patch_id));
+		}
 
 		item = _createSaveEntry(SAVE_FLAG_DC | SAVE_FLAG_MEMCARD | (device ? 0 : SAVE_FLAG_VMC), title);
 		if (vmzip)
@@ -1401,8 +1408,11 @@ int get_save_details(const save_entry_t* save, char **details)
 		if (vmzip_is_vmzip(ent.filename) && vmzip_header_info(data, len, orig_name, &orig_blocks))
 			snprintf(vmzip_info, sizeof(vmzip_info), "----- VMZip -----\n"
 				"Original file: %s\n"
-				"Original size: %d blocks (saves %d)\n",
-				orig_name, orig_blocks, orig_blocks - ent.filesize);
+				"Original size: %d blocks (saves %d)\n"
+				"Compression ratio: %d%%\n",
+				orig_name, orig_blocks, orig_blocks - ent.filesize,
+				// space saved, in whole blocks as on the card
+				((orig_blocks - ent.filesize) * 100 + orig_blocks / 2) / orig_blocks);
 		free(data);
 
 		asprintf(details, "%s%s\n----- Dreamcast VMU Save -----\n"
