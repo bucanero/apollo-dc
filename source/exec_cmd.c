@@ -467,10 +467,10 @@ static int apply_save_patches(save_entry_t* entry)
 			continue;
 
 		code->activated = 0;
-		if (code->codes[0] != SFO_UNLOCK_COPY && code->codes[0] != SFO_LOCK_COPY)
+		if (code->codes[0] != SFO_UNLOCK_COPY)
 			continue;
 
-		protect = (code->codes[0] == SFO_LOCK_COPY);
+		protect = !(entry->flags & SAVE_FLAG_LOCKED);
 		if (!vmucard_set_copyprotect(entry->path, entry->dir_name, protect))
 		{
 			ret = 0;
@@ -483,8 +483,7 @@ static int apply_save_patches(save_entry_t* entry)
 			entry->flags &= ~SAVE_FLAG_LOCKED;
 
 		free(code->name);
-		asprintf(&code->name, "%c %s", CHAR_TAG_LOCKED, protect ? "Unlock save (remove copy protection)" : "Lock save (copy protect)");
-		code->codes[0] = protect ? SFO_UNLOCK_COPY : SFO_LOCK_COPY;
+		asprintf(&code->name, "%c %s", CHAR_TAG_LOCKED, protect ? "Remove copy protection (unlock save)" : "Add copy protection (lock save)");
 	}
 
 	return ret;

@@ -693,9 +693,9 @@ int ReadVmuCodes(save_entry_t * save)
 	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Permissions " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
 	list_append(save->codes, cmd);
 	if (save->flags & SAVE_FLAG_LOCKED)
-		cmd = _createCmdCode(PATCH_SFO, CHAR_ICON_LOCK " Unlock save (remove copy protection)", SFO_UNLOCK_COPY);
+		cmd = _createCmdCode(PATCH_SFO, CHAR_ICON_LOCK " Remove copy protection (unlock save)", SFO_UNLOCK_COPY);
 	else
-		cmd = _createCmdCode(PATCH_SFO, CHAR_ICON_LOCK " Lock save (copy protect)", SFO_LOCK_COPY);
+		cmd = _createCmdCode(PATCH_SFO, CHAR_ICON_LOCK " Add copy protection (lock save)", SFO_UNLOCK_COPY);
 	list_append(save->codes, cmd);
 
 	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Backup " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);

@@ -97,8 +97,7 @@ enum cmd_code_enum
 // Save patches (PATCH_SFO codes), applied with "Apply Changes"
 enum sfo_patch_enum
 {
-    SFO_UNLOCK_COPY = 1,    // clear the VMU copy protection flag
-    SFO_LOCK_COPY,          // set it
+    SFO_UNLOCK_COPY = 1,    // toggle the VMU copy protection flag: locked saves get unlocked, unlocked ones locked
 };
 
 // Save flags
