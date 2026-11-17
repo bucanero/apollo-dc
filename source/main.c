@@ -14,6 +14,7 @@
 #include "dcpad.h"
 #include "vmu_dev.h"
 #include "buk_icon.h"
+#include "temple_icon.h"
 
 #include <dc/sd.h>
 #include <dc/sci.h>
@@ -644,6 +645,9 @@ int main(int argc, char *argv[])
 
 	// Splash screen logo (fade-out)
 	drawSplashLogo(-1);
+
+	// loading is done: Apollo's temple replaces Bucanero's pixel art on the VMU screens
+	vmu_set_icon(temple_icon_xpm);
 	SDL_DestroyTexture(menu_textures[buk_scr_png_index].texture);
 	
 	//Set options
