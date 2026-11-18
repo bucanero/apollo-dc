@@ -407,3 +407,39 @@ int vmudev_dump(const char* path, uint8_t* image, void (*progress)(int done, int
 	LOG("Dumped %d blocks from %s", VMUDEV_BLOCKS, path);
 	return 1;
 }
+
+int vmudev_set_copyprotect(const char* path, const char* name, int protect)
+{
+	vmu_root_t root;
+	vmu_dir_t de, *dir = NULL;
+	char fn[VMU_FILENAME_SIZE + 1];
+	int idx, ret = 0;
+	maple_device_t* dev = get_device(path);
+
+	if (!dev || !find_dirent(dev, name, &de))
+		return 0;
+
+	raw_name(&de, fn);
+	vmufs_mutex_lock();
+
+	if (vmufs_root_read(dev, &root) < 0 || (dir = malloc(vmufs_dir_blocks(&root))) == NULL)
+		goto unlock;
+
+	if (vmufs_dir_read(dev, &root, dir) == 0 && (idx = vmufs_dir_find(&root, dir, fn)) >= 0)
+	{
+		dir[idx].copyprotect = protect ? VMU_FILE_PROTECTED : VMU_FILE_COPYABLE;
+		dir[idx].dirty = 1;
+		ret = (vmufs_dir_write(dev, &root, dir) == 0);
+	}
+
+unlock:
+	free(dir);
+	vmufs_mutex_unlock();
+
+	if (ret)
+		LOG("%s '%s' on %s", protect ? "Locked" : "Unlocked", name, path);
+	else
+		LOG("Error: couldn't change the copy protection of '%s' on %s", name, path);
+
+	return ret;
+}

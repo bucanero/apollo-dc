@@ -90,6 +90,14 @@ enum cmd_code_enum
 // Dreamcast VMU commands
     CMD_DELETE_SAVE,
     CMD_EXP_VMU_IMAGE,
+    CMD_VMZIP_PACK,
+    CMD_VMZIP_UNPACK,
+};
+
+// Save patches (PATCH_SFO codes), applied with "Apply Changes"
+enum sfo_patch_enum
+{
+    SFO_UNLOCK_COPY = 1,    // toggle the VMU copy protection flag: locked saves get unlocked, unlocked ones locked
 };
 
 // Save flags
@@ -97,13 +105,14 @@ enum cmd_code_enum
 #define SAVE_FLAG_SELECTED      2
 #define SAVE_FLAG_ZIP           4
 #define SAVE_FLAG_PS1           8
-#define SAVE_FLAG_PS2           16
+#define SAVE_FLAG_VMZIP         16          // a VMZip compressed save (VMZIPDAT.NNN)
 #define SAVE_FLAG_DC            32
 #define SAVE_FLAG_PACKED        64
 #define SAVE_FLAG_LOCKED        128
 #define SAVE_FLAG_ONLINE        256
 #define SAVE_FLAG_VMC           512
 #define SAVE_FLAG_UPDATED       1024        // the list it came from must be re-read
+#define SAVE_FLAG_VMU_GAME      2048        // a VMU mini-game, not a data file
 
 enum save_type_enum
 {

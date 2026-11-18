@@ -25,6 +25,7 @@ include_directories(
   $ENV{KOS_PORTS}/include/freetype2
   $ENV{KOS_PORTS}/include/zlib
   $ENV{KOS_PORTS}/include/libzip
+  $ENV{KOS_PORTS}/include/bzlib
 )
 
 link_directories(
@@ -82,6 +83,7 @@ add_executable(${PROJECT_NAME}
   source/vmu_dev.c
   source/vmu_card.c
   source/zip_util.c
+  source/vmzip.c
   source/http.c
 )
 
