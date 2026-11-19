@@ -561,7 +561,7 @@ static int initInternal(void)
 
 static void softResetButtonCallback(uint8_t addr, uint32_t btns)
 {
-    close_app = 1;
+	close_app = 1;
 }
 
 /*
@@ -569,8 +569,6 @@ static void softResetButtonCallback(uint8_t addr, uint32_t btns)
 */
 int main(int argc, char *argv[])
 {
-    cont_btn_callback(0, CONT_RESET_BUTTONS, softResetButtonCallback);
-
 #ifdef APOLLO_ENABLE_LOGGING
 	// Frame tracking info for debugging
 	uint32_t lastFrameTicks  = 0;
@@ -579,6 +577,7 @@ int main(int argc, char *argv[])
 
 	dbglogger_init_mode(TTY_LOGGER, NULL, 0);
 #endif
+	cont_btn_callback(0, CONT_RESET_BUTTONS, softResetButtonCallback);
 	dbglogger_init_mode(TTY_LOGGER, NULL, 0);
 
 	// Bucanero's pixel art on the screen of every VMU plugged in
