@@ -1473,6 +1473,17 @@ int get_save_details(const save_entry_t* save, char **details)
 		return 1;
 	}
 
+	if (save->flags & SAVE_FLAG_ONLINE)
+	{
+		asprintf(details, "%s\n----- Online Database -----\n"
+			"Game: %s\n"
+			"Folder: %s\n",
+			save->path,
+			save->name,
+			save->title_id);
+		return 1;
+	}
+
 	asprintf(details, "%s\n----- Save -----\n"
 		"Title: %s\n"
 		"Title ID: %s\n"

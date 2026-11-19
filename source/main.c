@@ -20,6 +20,8 @@
 #include <dc/sci.h>
 #include <dc/maple/vmu.h>
 #include <fat/fs_fat.h>
+#include <dc/fs_dcload.h>
+#include <arch/arch.h>
 
 //Font
 #include "libfont.h"
@@ -572,6 +574,11 @@ int main(int argc, char *argv[])
 	dbglogger_init_mode(TTY_LOGGER, NULL, 0);
 #endif
 
+	// KOS returns to the loader on exit by default: a self-booting disc has no
+	// loader to go back to, so go to the BIOS menu unless dcload started us
+	if (*DCLOADMAGICADDR != DCLOADMAGICVALUE)
+		arch_set_exit_path(ARCH_EXIT_MENU);
+
 	// Bucanero's pixel art on the screen of every VMU plugged in
 	vmu_set_icon(buk_icon_xpm);
 
@@ -689,7 +696,7 @@ int main(int argc, char *argv[])
 	SDL_DestroyWindow(window);
 	// Stop all SDL sub-systems
 	SDL_Quit();
-//	http_end();
+	http_end();
 	dcPadFinish();
 	terminate();
 
