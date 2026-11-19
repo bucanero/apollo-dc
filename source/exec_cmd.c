@@ -25,14 +25,6 @@ static int _set_dest_path(char* path, int dest, const char* folder)
 {
 	switch (dest)
 	{
-	case STORAGE_MC1:
-		sprintf(path, "%s%s", MC1_PATH, folder);
-		break;
-
-	case STORAGE_MC0:
-		sprintf(path, "%s%s", MC0_PATH, folder);
-		break;
-
 	case STORAGE_MASS:
 		sprintf(path, "%s%s", USB_PATH, folder);
 		break;
@@ -67,9 +59,7 @@ static void downloadSave(const save_entry_t* entry, const char* file, int dst)
 {
 	char path[256], zip[256];
 
-	_set_dest_path(path, dst, (entry->flags & SAVE_FLAG_DC) ? DC_SAVES_PATH : PS2_SAVES_PATH_USB);
-	if (dst == STORAGE_MC0)
-		snprintf(path, sizeof(path), PSP_SAVES_PATH_HDD);
+	_set_dest_path(path, dst, (entry->flags & SAVE_FLAG_DC) ? DC_SAVES_PATH : PS1_SAVES_PATH_USB);
 
 	if (!check_export_dir(path))
 		return;
