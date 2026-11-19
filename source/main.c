@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <zlib.h>
+#include <stdatomic.h>
 
 #include "saves.h"
 #include "utils.h"
@@ -66,7 +67,7 @@ app_config_t apollo_config = {
     .user_id = 0,
 };
 
-int close_app = 0;
+atomic_int close_app = 0;
 int idle_time = 0;                          // Set by readPad
 
 png_texture * menu_textures;                // png_texture array for main menu, initialized in LoadTexture
@@ -558,6 +559,11 @@ static int initInternal(void)
 	return 1;
 }
 
+static void softResetButtonCallback(uint8_t addr, uint32_t btns)
+{
+	close_app = 1;
+}
+
 /*
 	Program start
 */
@@ -571,6 +577,7 @@ int main(int argc, char *argv[])
 
 	dbglogger_init_mode(TTY_LOGGER, NULL, 0);
 #endif
+	cont_btn_callback(0, CONT_RESET_BUTTONS, softResetButtonCallback);
 	dbglogger_init_mode(TTY_LOGGER, NULL, 0);
 
 	// Bucanero's pixel art on the screen of every VMU plugged in
