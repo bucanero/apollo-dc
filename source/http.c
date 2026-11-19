@@ -22,6 +22,7 @@
 void eth_init(void);
 
 static int net_state = 0;   // 0 = not tried yet, 1 = up, -1 = no adapter / no DHCP lease
+static int net_started = 0; // net_init() succeeded: the stack must be shut down on exit
 
 // Bring the network up the first time it's needed, so a Dreamcast without an
 // adapter doesn't pay for it at boot; a failed attempt isn't retried
@@ -34,7 +35,15 @@ int network_up(void)
 	init_loading_screen("Connecting to the network...");
 
 	eth_init();
-	if (net_init(0) < 0 || !net_default_dev)
+	if (net_init(0) < 0)
+	{
+		stop_loading_screen();
+		LOG("No network adapter found");
+		return HTTP_FAILED;
+	}
+
+	net_started = 1;
+	if (!net_default_dev)
 	{
 		stop_loading_screen();
 		LOG("No network adapter found");
@@ -143,10 +152,18 @@ int http_download(const char* url, const char* filename, const char* local_dst, 
 	return HTTP_SUCCESS;
 }
 
+// KOS only shuts the network down on exit when it started it (INIT_NET), and
+// it stops G2 DMA first: the BBA's DHCP job could then send a packet through
+// the dead DMA channel and crash. Stop the network ourselves before that.
 void http_end(void)
 {
 	if (net_state > 0)
 		curl_global_cleanup();
+
+	if (net_started)
+		net_shutdown();
+
+	net_state = net_started = 0;
 }
 
 /*

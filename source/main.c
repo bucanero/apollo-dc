@@ -21,6 +21,8 @@
 #include <dc/sci.h>
 #include <dc/maple/vmu.h>
 #include <fat/fs_fat.h>
+#include <dc/fs_dcload.h>
+#include <arch/arch.h>
 
 //Font
 #include "libfont.h"
@@ -62,7 +64,7 @@ app_config_t apollo_config = {
     .music = 1,
     .doSort = 1,
     .doAni = 1,
-    .update = 0,
+    .dbglog = 0,
     .storage = 0,
     .user_id = 0,
 };
@@ -578,7 +580,11 @@ int main(int argc, char *argv[])
 	dbglogger_init_mode(TTY_LOGGER, NULL, 0);
 #endif
 	cont_btn_callback(0, CONT_RESET_BUTTONS, softResetButtonCallback);
-	dbglogger_init_mode(TTY_LOGGER, NULL, 0);
+
+	// KOS returns to the loader on exit by default: a self-booting disc has no
+	// loader to go back to, so go to the BIOS menu unless dcload started us
+	if (*DCLOADMAGICADDR != DCLOADMAGICVALUE)
+		arch_set_exit_path(ARCH_EXIT_MENU);
 
 	// Bucanero's pixel art on the screen of every VMU plugged in
 	vmu_set_icon(buk_icon_xpm);
@@ -645,6 +651,7 @@ int main(int argc, char *argv[])
 
 	// Load application settings
 	load_app_settings(&apollo_config);
+	start_debug_log();
 
 	// Setup font
 	SetExtraSpace(-10);
@@ -658,7 +665,6 @@ int main(int argc, char *argv[])
 	SDL_DestroyTexture(menu_textures[buk_scr_png_index].texture);
 	
 	//Set options
-	update_callback(!apollo_config.update);
 
 	// Start BGM audio thread
 	music_callback(!apollo_config.music);
@@ -697,7 +703,7 @@ int main(int argc, char *argv[])
 	SDL_DestroyWindow(window);
 	// Stop all SDL sub-systems
 	SDL_Quit();
-//	http_end();
+	http_end();
 	dcPadFinish();
 	terminate();
 

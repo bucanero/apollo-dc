@@ -114,7 +114,7 @@ static code_entry_t* LoadOnlineSaveDetails(void)
 	centry->name = strdup(selected_entry->title_id);
 	centry->file = strdup(selected_centry->name+2);
 
-	for (int i = 55, len = strlen(centry->file); i < len; i += 55)
+	for (int i = 35, len = strlen(centry->file); i < len; i += 35)
 		for (int j = i; j < len; j++)
 			if (centry->file[j] == ' ')
 			{

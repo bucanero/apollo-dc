@@ -674,8 +674,8 @@ int ReadVmuCodes(save_entry_t * save)
 		cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Backup " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
 		list_append(save->codes, cmd);
 		_addVmuCopyCommand(save->codes, CHAR_ICON_COPY " Copy save game to another VMU", "Copy to", CMD_COPY_SAVE_HDD, save->path);
-		_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .DCI format", "Export .DCI to", CMD_COPY_SAVE_USB, FILE_TYPE_DCI);
 		_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .VMI/.VMS format", "Export .VMI/.VMS to", CMD_COPY_SAVE_USB, FILE_TYPE_VMI);
+		_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .DCI format", "Export .DCI to", CMD_COPY_SAVE_USB, FILE_TYPE_DCI);
 
 		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_WARN " Delete Save Game", CMD_DELETE_SAVE);
 		list_append(save->codes, cmd);
@@ -702,8 +702,8 @@ int ReadVmuCodes(save_entry_t * save)
 	list_append(save->codes, cmd);
 
 	_addVmuCopyCommand(save->codes, CHAR_ICON_COPY " Copy save game to another VMU", "Copy to", CMD_COPY_SAVE_HDD, save->path);
-	_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .DCI format", "Export .DCI to", CMD_COPY_SAVE_USB, FILE_TYPE_DCI);
 	_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .VMI/.VMS format", "Export .VMI/.VMS to", CMD_COPY_SAVE_USB, FILE_TYPE_VMI);
+	_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .DCI format", "Export .DCI to", CMD_COPY_SAVE_USB, FILE_TYPE_DCI);
 
 	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Tools " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
 	list_append(save->codes, cmd);
@@ -1470,6 +1470,17 @@ int get_save_details(const save_entry_t* save, char **details)
 			save->title_id,
 			save->dir_name);
 
+		return 1;
+	}
+
+	if (save->flags & SAVE_FLAG_ONLINE)
+	{
+		asprintf(details, "%s\n----- Online Database -----\n"
+			"Game: %s\n"
+			"Folder: %s\n",
+			save->path,
+			save->name,
+			save->title_id);
 		return 1;
 	}
 

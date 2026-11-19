@@ -1,4 +1,4 @@
-#define APOLLO_VERSION          "0.7.0"     //Apollo Vita version (about menu)
+#define APOLLO_VERSION          "1.0.0"     //Apollo Dreamcast version (about menu)
 
 #define MENU_TITLE_OFF			30			//Offset of menu title text from menu mini icon
 #define MENU_ICON_OFF 			35          //X Offset to start printing menu mini icon
@@ -32,7 +32,7 @@ typedef struct __attribute__((packed))
     uint8_t doSort;
     uint8_t doAni;
     uint8_t storage;
-    uint8_t update;
+    uint8_t dbglog;         // debug log to the SD card (this byte was the old update check flag)
     uint32_t user_id;
     char save_db[256];
 } app_config_t;
@@ -46,5 +46,7 @@ void music_callback(int sel);
 void sort_callback(int sel);
 void ani_callback(int sel);
 void update_callback(int sel);
+void check_app_version(int verbose);
+void start_debug_log(void);
 void clearcache_callback(int sel);
 void upd_appdata_callback(int sel);
