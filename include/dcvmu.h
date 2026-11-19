@@ -152,6 +152,9 @@ int vmu_delete_file(vmu_card_t *card, int idx);
 /* Rename a file */
 int vmu_rename_file(vmu_card_t *card, int idx, const char *name);
 
+/* Set or clear a file's copy protection flag */
+int vmu_set_copyprotect(vmu_card_t *card, int idx, int protect);
+
 /* Current local time as a VMU timestamp */
 void vmu_timestamp_now(vmu_timestamp_t *ts);
 

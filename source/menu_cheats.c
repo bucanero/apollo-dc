@@ -365,7 +365,7 @@ void DrawGameList(int selIndex, list_t * games, u8 alpha)
 			if (item->flags & SAVE_FLAG_DC) tmp[0] = CHAR_TAG_DC;
 			if (item->flags & SAVE_FLAG_PS1) tmp[0] = CHAR_TAG_PS1;
 			if (item->flags & SAVE_FLAG_LOCKED) tmp[1] = CHAR_TAG_LOCKED;
-			if (item->flags & SAVE_FLAG_PACKED) tmp[1] = CHAR_TAG_PACK;
+			if (item->flags & (SAVE_FLAG_PACKED | SAVE_FLAG_VMZIP)) tmp[1] = CHAR_TAG_PACK;
 
 			DrawString(SCREEN_WIDTH - 20 - (MENU_ICON_OFF * 2), game_y, tmp);
 skip_draw:

@@ -49,4 +49,7 @@ int vmucard_overwrite(const char* path, const char* name, const uint8_t* data, s
 
 int vmucard_delete(const char* path, const char* name);
 
+/* Set or clear a file's copy protection flag */
+int vmucard_set_copyprotect(const char* path, const char* name, int protect);
+
 #endif

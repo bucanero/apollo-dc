@@ -297,7 +297,7 @@ static void SetMenu(int id)
 			{
 //				LoadRawIconTexture(loadVmcIcon(selected_entry->dir_name, selected_entry->icon), icon_png_file_index);
 			}
-			else if (selected_entry->flags & (SAVE_FLAG_PS2 | SAVE_FLAG_PS1) && selected_entry->icon)
+			else if ((selected_entry->flags & SAVE_FLAG_PS1) && selected_entry->icon)
 				snprintf(iconfile, sizeof(iconfile), "%s%s", selected_entry->path, selected_entry->icon);
 
 			if (file_exists(iconfile) == SUCCESS)
@@ -708,6 +708,16 @@ static void doCodeOptionsMenu(void)
 			}
 
 			execCodeCommand(code, optval->value);
+
+			// VMZip deleted the save it read: nothing left in its menu, back to the
+			// list (leaving the save menu reloads it). Leaving frees selected_entry
+			if ((optval->value[0] == CMD_VMZIP_PACK || optval->value[0] == CMD_VMZIP_UNPACK) && code->activated)
+			{
+				code->activated = 0;
+				SetMenu(MENU_PATCHES);
+				SetMenu(last_menu_id[MENU_PATCHES]);
+				return;
+			}
 		}
 
 		option_index++;

@@ -13,6 +13,7 @@
 #include "dcsave.h"
 #include "vmu_dev.h"
 #include "vmu_card.h"
+#include "vmzip.h"
 #include "sjis.h"
 
 #define UTF8_CHAR_STAR		"\xE2\x98\x85"
@@ -262,6 +263,41 @@ static option_entry_t* _createVmuOptions(const char* name, char cmd, const char*
 	}
 
 	return options;
+}
+
+// VMZip destinations: the save's own card (VMU or image) first, then every other VMU
+static option_entry_t* _createVmzipOptions(const char* name, char cmd, const char* card)
+{
+	char label[128], value[2 + 256];
+	option_entry_t* options = _initOptions(1);
+	int count = _listVmus();
+
+	value[0] = cmd;
+	value[1] = STORAGE_VMU;
+	snprintf(value + 2, sizeof(value) - 2, "%s", card);
+	snprintf(label, sizeof(label), "%s %s", name, vmucard_is_device(card) ? "this VMU" : "this VMU image");
+	list_append(options[0].opts, _newOption(label, value, 2 + strlen(value + 2)));
+
+	for (int i = 0; i < count; i++)
+	{
+		if (strcmp(vmu_list.paths[i], card) == 0)
+			continue;
+
+		snprintf(value + 2, sizeof(value) - 2, "%s", vmu_list.paths[i]);
+		snprintf(label, sizeof(label), "%.60s %.47s", name, vmu_list.names[i]);
+		list_append(options[0].opts, _newOption(label, value, 2 + strlen(value + 2)));
+	}
+
+	return options;
+}
+
+static void _addVmzipCommand(list_t* codes, const char* title, const char* name, char cmd, const char* card)
+{
+	code_entry_t* entry = _createCmdCode(PATCH_COMMAND, title, CMD_CODE_NULL);
+
+	entry->options_count = 1;
+	entry->options = _createVmzipOptions(name, cmd, card);
+	list_append(codes, entry);
 }
 
 static void _addVmuCopyCommand(list_t* codes, const char* title, const char* name, char cmd, const char* exclude)
@@ -625,10 +661,41 @@ int ReadVmuCodes(save_entry_t * save)
 
 	save->codes = list_alloc();
 
+	// a VMZip file only holds compressed data: unpack it, copy it, or delete it
+	if (save->flags & SAVE_FLAG_VMZIP)
+	{
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " View Save Details", CMD_VIEW_DETAILS);
+		list_append(save->codes, cmd);
+
+		cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " VMZip " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+		list_append(save->codes, cmd);
+		_addVmzipCommand(save->codes, CHAR_ICON_ZIP " Decompress VMZip save", "Decompress to", CMD_VMZIP_UNPACK, save->path);
+
+		cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Backup " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+		list_append(save->codes, cmd);
+		_addVmuCopyCommand(save->codes, CHAR_ICON_COPY " Copy save game to another VMU", "Copy to", CMD_COPY_SAVE_HDD, save->path);
+		_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .DCI format", "Export .DCI to", CMD_COPY_SAVE_USB, FILE_TYPE_DCI);
+		_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .VMI/.VMS format", "Export .VMI/.VMS to", CMD_COPY_SAVE_USB, FILE_TYPE_VMI);
+
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_WARN " Delete Save Game", CMD_DELETE_SAVE);
+		list_append(save->codes, cmd);
+
+		return list_count(save->codes);
+	}
+
 	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " Apply Changes", CMD_RESIGN_SAVE);
 	list_append(save->codes, cmd);
 
 	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " View Save Details", CMD_VIEW_DETAILS);
+	list_append(save->codes, cmd);
+
+	// toggled like a cheat, written by "Apply Changes"
+	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Permissions " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+	list_append(save->codes, cmd);
+	if (save->flags & SAVE_FLAG_LOCKED)
+		cmd = _createCmdCode(PATCH_SFO, CHAR_ICON_LOCK " Remove copy protection (unlock save)", SFO_UNLOCK_COPY);
+	else
+		cmd = _createCmdCode(PATCH_SFO, CHAR_ICON_LOCK " Add copy protection (lock save)", SFO_UNLOCK_COPY);
 	list_append(save->codes, cmd);
 
 	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Backup " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
@@ -640,6 +707,10 @@ int ReadVmuCodes(save_entry_t * save)
 
 	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Tools " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
 	list_append(save->codes, cmd);
+
+	// VMZip writes saves back as data files: a mini-game would come back broken
+	if (!(save->flags & SAVE_FLAG_VMU_GAME))
+		_addVmzipCommand(save->codes, CHAR_ICON_ZIP " Compress save with VMZip", "Compress to", CMD_VMZIP_PACK, save->path);
 
 	// a VMU save is a single file: the only option is the save itself
 	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " Hex Edit save game file", CMD_CODE_NULL);
@@ -831,91 +902,25 @@ int ReadBackupCodes(save_entry_t * bup)
  */
 void UnloadGameList(list_t * list)
 {
-	list_node_t *node, *nc, *no;
+	list_node_t *node;
 	save_entry_t *item;
-	code_entry_t *code;
-	option_value_t* optval;
 
 	for (node = list_head(list); (item = list_get(node)); node = list_next(node))
 	{
-		if (item->name)
-		{
-			free(item->name);
-			item->name = NULL;
-		}
+		free(item->name);
+		free(item->path);
+		free(item->dir_name);
+		free(item->title_id);
+		free(item->icon);
 
-		if (item->path)
-		{
-			free(item->path);
-			item->path = NULL;
-		}
-
-		if (item->dir_name)
-		{
-			free(item->dir_name);
-			item->dir_name = NULL;
-		}
-
-		if (item->title_id)
-		{
-			free(item->title_id);
-			item->title_id = NULL;
-		}
-
-		if (item->icon)
-		{
-			free(item->icon);
-			item->icon = NULL;
-		}
-
-		if (item->codes)
-		{
-			for (nc = list_head(item->codes); (code = list_get(nc)); nc = list_next(nc))
-			{
-				if (code->codes)
-				{
-					free (code->codes);
-					code->codes = NULL;
-				}
-				if (code->name)
-				{
-					free (code->name);
-					code->name = NULL;
-				}
-				if (code->options && code->options_count > 0)
-				{
-					for (int z = 0; z < code->options_count; z++)
-					{
-						for (no = list_head(code->options[z].opts); (optval = list_get(no)); no = list_next(no))
-						{
-							if (optval->name)
-								free(optval->name);
-							if (optval->value)
-								free(optval->value);
-
-							free(optval);
-						}
-						list_free(code->options[z].opts);
-
-						if (code->options[z].line)
-							free(code->options[z].line);
-					}
-					
-					free (code->options);
-				}
-
-				free(code);
-			}
-			
-			list_free(item->codes);
-			item->codes = NULL;
-		}
+		apollo_free_code_list(item->codes, list_head(item->codes));
+		item->codes = NULL;
 
 		free(item);
 	}
 
 	list_free(list);
-	
+
 	LOG("UnloadGameList() :: Successfully unloaded game list");
 }
 
@@ -1222,12 +1227,30 @@ list_t * ReadUserList(const char* userPath)
 	{
 		vmu_dirent_decode(files[i].dirent, &ent);
 
-		if (!files[i].has_header || !dc_header_title(files[i].header, title, sizeof(title)))
-			snprintf(title, sizeof(title), "%s", ent.filename);
+		char orig_name[VMU_NAME_LEN + 1];
+		int orig_blocks, vmzip = vmzip_is_vmzip(ent.filename) && files[i].has_header &&
+			vmzip_header_info(files[i].header, VMUDEV_HEADER_SIZE, orig_name, &orig_blocks);
 
-		dc_get_patch_id(titleid_db, ent.filename, patch_id, sizeof(patch_id));
+		// a VMZip file is titled after the save it holds, but keeps its own file name (VMZIPDAT.NNN)
+		// as the ID: it has no patches, and the name is what's on the card
+		if (vmzip)
+		{
+			snprintf(title, sizeof(title), "%s (%d blocks)", orig_name, orig_blocks);
+			snprintf(patch_id, sizeof(patch_id), "%s", ent.filename);
+		}
+		else
+		{
+			if (!files[i].has_header || !dc_header_title(files[i].header, title, sizeof(title)))
+				snprintf(title, sizeof(title), "%s", ent.filename);
+
+			dc_get_patch_id(titleid_db, ent.filename, patch_id, sizeof(patch_id));
+		}
 
 		item = _createSaveEntry(SAVE_FLAG_DC | SAVE_FLAG_MEMCARD | (device ? 0 : SAVE_FLAG_VMC), title);
+		if (vmzip)
+			item->flags |= SAVE_FLAG_VMZIP;
+		if (ent.filetype == VMU_FILE_GAME)
+			item->flags |= SAVE_FLAG_VMU_GAME;
 		item->type = FILE_TYPE_VMS;
 		item->path = strdup(userPath);
 		item->dir_name = strdup(ent.filename);
@@ -1357,6 +1380,7 @@ int get_save_details(const save_entry_t* save, char **details)
 		vmu_dirent_t ent;
 		vms_header_t vms;
 		char desc_dc[DC_TEXT_SIZE(32)] = "", desc_vms[DC_TEXT_SIZE(16)] = "", app_id[DC_TEXT_SIZE(16)] = "", crc[32] = "n/a";
+		char vmzip_info[128] = "";
 		int icons = 0;
 
 		if (save->type == FILE_TYPE_VMS ? !vmucard_read(save->path, save->dir_name, raw, &data, &len) :
@@ -1370,10 +1394,25 @@ int get_save_details(const save_entry_t* save, char **details)
 
 			dc_copy_text(desc_dc, sizeof(desc_dc), vms.desc_dc, 32);
 			dc_copy_text(desc_vms, sizeof(desc_vms), vms.desc_vms, 16);
-			dc_copy_text(app_id, sizeof(app_id), vms.app_id, 16);
+			// VMZip keeps the original size in the app ID's first byte: not text
+			if (vmzip_is_vmzip(ent.filename))
+				dc_copy_text(app_id, sizeof(app_id), vms.app_id + 1, 15);
+			else
+				dc_copy_text(app_id, sizeof(app_id), vms.app_id, 16);
 			icons = vms.icons;
 			snprintf(crc, sizeof(crc), "%04X (%s)", vms.crc, (calc == vms.crc) ? "OK" : "mismatch");
 		}
+
+		char orig_name[VMU_NAME_LEN + 1];
+		int orig_blocks;
+		if (vmzip_is_vmzip(ent.filename) && vmzip_header_info(data, len, orig_name, &orig_blocks))
+			snprintf(vmzip_info, sizeof(vmzip_info), "----- VMZip -----\n"
+				"Original file: %s\n"
+				"Original size: %d blocks (saves %d)\n"
+				"Compression ratio: %d%%\n",
+				orig_name, orig_blocks, orig_blocks - ent.filesize,
+				// space saved, in whole blocks as on the card
+				((orig_blocks - ent.filesize) * 100 + orig_blocks / 2) / orig_blocks);
 		free(data);
 
 		asprintf(details, "%s%s\n----- Dreamcast VMU Save -----\n"
@@ -1387,7 +1426,8 @@ int get_save_details(const save_entry_t* save, char **details)
 			"Icons: %d\n"
 			"CRC: %s\n"
 			"Copy Protected: %s\n"
-			"Patch ID: %s\n",
+			"Patch ID: %s\n"
+			"%s",
 			save->path, (save->type == FILE_TYPE_VMS) ? save->dir_name : "",
 			ent.filename,
 			desc_dc,
@@ -1401,14 +1441,15 @@ int get_save_details(const save_entry_t* save, char **details)
 			icons,
 			crc,
 			(ent.copyprotect == VMU_COPY_PROTECTED) ? "Yes" : "No",
-			save->title_id);
+			save->title_id,
+			vmzip_info);
 
 		return 1;
 	}
 
 	if (save->flags & SAVE_FLAG_PACKED)
 	{
-		asprintf(details, "%s\n----- Packed PS2 Save -----\n"
+		asprintf(details, "%s\n----- Exported DC Save -----\n"
 			"File: %s\n"
 			"Title ID: %s\n"
 			"Folder: %s\n",
@@ -1428,22 +1469,6 @@ int get_save_details(const save_entry_t* save, char **details)
 			save->path,
 			save->title_id,
 			save->dir_name);
-
-		return 1;
-	}
-
-	if (save->flags & SAVE_FLAG_PS2)
-	{
-		asprintf(details, "%s\n----- PS2 Save -----\n"
-			"Game: %s\n"
-			"Title ID: %s\n"
-			"Folder: %s\n"
-			"Icon: %s\n",
-			save->path,
-			save->name,
-			save->title_id,
-			save->dir_name,
-			save->icon);
 
 		return 1;
 	}

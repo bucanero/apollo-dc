@@ -14,9 +14,12 @@
 #include "common.h"
 #include "dcpad.h"
 #include "vmu_dev.h"
+#include "buk_icon.h"
+#include "temple_icon.h"
 
 #include <dc/sd.h>
 #include <dc/sci.h>
+#include <dc/maple/vmu.h>
 #include <fat/fs_fat.h>
 
 //Font
@@ -214,14 +217,24 @@ static int initPad(void)
     return 1;
 }
 
+// Used only in initialization: the splash logo alone, so it shows while the rest loads
+static int LoadTextures_Splash(void)
+{
+	menu_textures = (png_texture *)calloc(TOTAL_MENU_TEXTURES, sizeof(png_texture));
+	if (!menu_textures)
+		return 0;
+
+	load_menu_texture(buk_scr, png);
+	return 1;
+}
+
 // Used only in initialization. Allocates 64 mb for textures and loads the font
 static int LoadTextures_Menu(void)
 {
 	font_ttf = malloc(size_font_ttf);
 	texture_mem = malloc(256 * 8 * 4);
-	menu_textures = (png_texture *)calloc(TOTAL_MENU_TEXTURES, sizeof(png_texture));
 
-	if(!texture_mem || !menu_textures || !font_ttf)
+	if(!texture_mem || !font_ttf)
 		return 0; // fail!
 
 	ResetFont();
@@ -258,7 +271,6 @@ static int LoadTextures_Menu(void)
 	load_menu_texture(scroll_bg, png);
 	load_menu_texture(scroll_lock, png);
 	load_menu_texture(help, png);
-	load_menu_texture(buk_scr, png);
 	load_menu_texture(cat_about, png);
 	load_menu_texture(cat_cheats, png);
 	load_menu_texture(cat_opt, png);
@@ -309,13 +321,6 @@ static int LoadTextures_Menu(void)
 	u32 tBytes = free_mem - texture_mem;
 	LOG("LoadTextures_Menu() :: Allocated %db (%.02fkb, %.02fmb) for textures", tBytes, tBytes / (float)1024, tBytes / (float)(1024 * 1024));
 	return 1;
-}
-
-static void LoadSounds(void)
-{
-//	AHX_Init();
-//	AHX_LoadSongBuffer((void*) &_binary_data_inside_ahx_start, (int) &_binary_data_inside_ahx_size);
-//	AHX_SubSong(0);
 }
 
 // External Saves: the SD card and the PC (dcload) are both scanned; path is set when either is there
@@ -576,6 +581,9 @@ int main(int argc, char *argv[])
 #endif
 	dbglogger_init_mode(TTY_LOGGER, NULL, 0);
 
+	// Bucanero's pixel art on the screen of every VMU plugged in
+	vmu_set_icon(buk_icon_xpm);
+
 	// Initialize SDL functions
 	LOG("Initializing SDL");
 	// the Dreamcast SDL2 port defaults to a plain framebuffer (DMA) video mode with no OpenGL:
@@ -617,6 +625,16 @@ int main(int argc, char *argv[])
 	mkdirs(APOLLO_DATA_PATH);
 	mkdirs(APOLLO_LOCAL_CACHE);
 
+	// dedicated to Leon ~ in loving memory (2009 - 2022)
+	// dedicated to Luna ~ in loving memory (2011 - 2023)
+	// Splash screen logo (fade-in), kept on screen while the rest loads
+	if (!LoadTextures_Splash())
+	{
+		LOG("Failed to load splash texture!");
+		return (-1);
+	}
+	drawSplashLogo(1);
+
 	// Load texture
 	if (!LoadTextures_Menu())
 	{
@@ -625,32 +643,19 @@ int main(int argc, char *argv[])
 	}
 	registerSpecialChars();
 	initMenuOptions();
-	LoadSounds();
 
 	// Load application settings
 	load_app_settings(&apollo_config);
 
-	// Unpack application data on first run
-	if (file_exists(APOLLO_LOCAL_CACHE "appdata.zip") == SUCCESS)
-	{
-//		clean_directory(APOLLO_DATA_PATH);
-		if (extract_zip(APOLLO_LOCAL_CACHE "appdata.zip", APOLLO_DATA_PATH))
-			show_message("Successfully installed local application data");
-
-		unlink_secure(APOLLO_LOCAL_CACHE "appdata.zip");
-	}
-
-	// dedicated to Luna ~ in loving memory (2011 - 2023)
-	// Splash screen logo (fade-in)
-	drawSplashLogo(1);
-	sleep(2);
- 
 	// Setup font
 	SetExtraSpace(-10);
 	SetCurrentFont(font_adonais_regular);
 
 	// Splash screen logo (fade-out)
 	drawSplashLogo(-1);
+
+	// loading is done: Apollo's temple replaces Bucanero's pixel art on the VMU screens
+	vmu_set_icon(temple_icon_xpm);
 	SDL_DestroyTexture(menu_textures[buk_scr_png_index].texture);
 	
 	//Set options

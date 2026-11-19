@@ -587,3 +587,17 @@ const char *vmu_strerror(int err)
 	default:                return "unknown error";
 	}
 }
+
+int vmu_set_copyprotect(vmu_card_t *card, int idx, int protect)
+{
+	vmu_dirent_t ent;
+	int r;
+
+	if ((r = vmu_dir_get(card, idx, &ent)) != 1)
+		return r < 0 ? r : VMU_ERR_NOENT;
+
+	ent.copyprotect = protect ? VMU_COPY_PROTECTED : VMU_COPY_OK;
+	dir_put(card, idx, &ent);
+
+	return VMU_OK;
+}
