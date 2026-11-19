@@ -32,7 +32,7 @@ typedef struct __attribute__((packed))
     uint8_t doSort;
     uint8_t doAni;
     uint8_t storage;
-    uint8_t dbglog;         // debug log to the SD card (this byte was the old update check flag)
+    uint8_t dbglog;         // debug log to the SD card
     uint32_t user_id;
     char save_db[256];
 } app_config_t;
