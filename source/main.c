@@ -61,7 +61,7 @@ app_config_t apollo_config = {
     .music = 1,
     .doSort = 1,
     .doAni = 1,
-    .update = 0,
+    .dbglog = 0,
     .storage = 0,
     .user_id = 0,
 };
@@ -571,7 +571,6 @@ int main(int argc, char *argv[])
 
 	dbglogger_init_mode(TTY_LOGGER, NULL, 0);
 #endif
-	dbglogger_init_mode(TTY_LOGGER, NULL, 0);
 
 	// Bucanero's pixel art on the screen of every VMU plugged in
 	vmu_set_icon(buk_icon_xpm);
@@ -638,6 +637,7 @@ int main(int argc, char *argv[])
 
 	// Load application settings
 	load_app_settings(&apollo_config);
+	start_debug_log();
 
 	// Setup font
 	SetExtraSpace(-10);
@@ -651,7 +651,6 @@ int main(int argc, char *argv[])
 	SDL_DestroyTexture(menu_textures[buk_scr_png_index].texture);
 	
 	//Set options
-	update_callback(!apollo_config.update);
 
 	// Start BGM audio thread
 	music_callback(!apollo_config.music);

@@ -46,13 +46,13 @@ menu_option_t menu_options[] = {
 		.value = &apollo_config.storage,
 		.callback = owner_callback
 	},
-/*
-	{ .name = "Version Update Check", 
+	{ .name = "Check for Updates", 
 		.options = NULL, 
-		.type = APP_OPTION_BOOL, 
-		.value = &apollo_config.update, 
+		.type = APP_OPTION_CALL, 
+		.value = NULL, 
 		.callback = update_callback 
 	},
+/*
 	{ .name = "Update Application Data", 
 		.options = NULL, 
 		.type = APP_OPTION_CALL, 
@@ -66,10 +66,10 @@ menu_option_t menu_options[] = {
 		.value = NULL, 
 		.callback = clearcache_callback 
 	},
-	{ .name = "Enable Debug Log",
+	{ .name = "Debug Log",
 		.options = NULL,
-		.type = APP_OPTION_CALL,
-		.value = NULL,
+		.type = APP_OPTION_BOOL,
+		.value = &apollo_config.dbglog,
 		.callback = log_callback 
 	},
 	{ .name = NULL }
@@ -125,83 +125,100 @@ void upd_appdata_callback(int sel)
 	unlink_secure(APOLLO_LOCAL_CACHE "appdata.zip");
 }
 
-void update_callback(int sel)
+// "x.y.z" (an optional leading 'v') as one number, for comparing versions
+static int parse_version(const char* ver)
 {
-	apollo_config.update = !sel;
+	int major = 0, minor = 0, patch = 0;
 
-	if (!apollo_config.update)
+	if (*ver == 'v' || *ver == 'V')
+		ver++;
+
+	if (sscanf(ver, "%d.%d.%d", &major, &minor, &patch) < 2)
+		return -1;
+
+	return (major * 10000 + minor * 100 + patch);
+}
+
+// The value of a JSON string field ("key": "value"), copied into `out`
+static int json_get_string(const char* json, const char* key, char* out, size_t size)
+{
+	char pattern[64];
+	const char *start, *end;
+
+	snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+	if ((start = strstr(json, pattern)) == NULL)
+		return 0;
+
+	start += strlen(pattern);
+	while (*start == ' ' || *start == '\t' || *start == '\r' || *start == '\n' || *start == ':')
+		start++;
+
+	if (*start++ != '"' || (end = strchr(start, '"')) == NULL || (size_t)(end - start) >= size)
+		return 0;
+
+	memcpy(out, start, end - start);
+	out[end - start] = 0;
+	return 1;
+}
+
+// Ask GitHub for the latest apollo-dc release. Only a newer version is reported,
+// unless `verbose` (the user asked for the check): then every outcome is.
+void check_app_version(int verbose)
+{
+	char *buffer, latest[32];
+	int ret, local_ver, latest_ver;
+
+	if (!network_up())
+	{
+		if (verbose)
+			show_message("Error! No network connection\n\nA Broadband Adapter or LAN Adapter is needed\nto check for updates");
 		return;
+	}
 
 	LOG("checking latest Apollo version at %s", APOLLO_UPDATE_URL);
 
-	if (!http_download(APOLLO_UPDATE_URL, NULL, APOLLO_LOCAL_CACHE "ver.check", 0))
+	init_loading_screen("Checking for updates...");
+	ret = http_download(APOLLO_UPDATE_URL, NULL, APOLLO_LOCAL_CACHE "ver.check", 0);
+	stop_loading_screen();
+
+	if (!ret)
 	{
 		LOG("http request to %s failed", APOLLO_UPDATE_URL);
+		if (verbose)
+			show_message("Error! Couldn't check for updates");
 		return;
 	}
 
-	char *buffer;
-	long size = 0;
-
-	buffer = readTextFile(APOLLO_LOCAL_CACHE "ver.check", &size);
-
+	buffer = readTextFile(APOLLO_LOCAL_CACHE "ver.check", NULL);
+	unlink_secure(APOLLO_LOCAL_CACHE "ver.check");
 	if (!buffer)
 		return;
 
-	LOG("received %ld bytes", size);
-
-	static const char find[] = "\"name\":\"Apollo Save Tool v";
-	const char* start = strstr(buffer, find);
-	if (!start)
-	{
-		LOG("no name found");
-		goto end_update;
-	}
-
-	LOG("found name");
-	start += sizeof(find) - 1;
-
-	char* end = strchr(start, '"');
-	if (!end)
-	{
-		LOG("no end of name found");
-		goto end_update;
-	}
-	*end = 0;
-	LOG("latest version is %s", start);
-
-	if (strcasecmp(APOLLO_VERSION, start) == 0)
-	{
-		LOG("no need to update");
-		goto end_update;
-	}
-
-	start = strstr(end+1, "\"browser_download_url\":\"");
-	if (!start)
-		goto end_update;
-
-	start += 24;
-	end = strchr(start, '"');
-	if (!end)
-	{
-		LOG("no download URL found");
-		goto end_update;
-	}
-
-	*end = 0;
-	LOG("download URL is %s", start);
-
-	if (show_dialog(DIALOG_TYPE_YESNO, "New version available! Download update?"))
-	{
-		if (http_download(start, NULL, "ms0:/APOLLO/apollo-psp.zip", 1))
-			show_message("Update downloaded to ms0:/APOLLO/apollo-psp.zip");
-		else
-			show_message("Download error!");
-	}
-
-end_update:
+	ret = json_get_string(buffer, "tag_name", latest, sizeof(latest));
 	free(buffer);
-	return;
+
+	local_ver = parse_version(APOLLO_VERSION);
+	latest_ver = ret ? parse_version(latest) : -1;
+	if (latest_ver < 0)
+	{
+		LOG("no release version found");
+		if (verbose)
+			show_message("Error! Couldn't check for updates");
+		return;
+	}
+
+	LOG("latest version is %s (running v%s)", latest, APOLLO_VERSION);
+
+	if (latest_ver > local_ver)
+		show_message("New version available: %s\n(you have v%s)\n\nDownload it from:\n" APOLLO_RELEASES_URL, latest, APOLLO_VERSION);
+	else if (verbose)
+		show_message("You have the latest version (v%s)", APOLLO_VERSION);
+}
+
+// "Check for Updates": run the check now and report the result
+void update_callback(int sel)
+{
+	check_app_version(1);
 }
 
 void owner_callback(int sel)
@@ -209,10 +226,35 @@ void owner_callback(int sel)
 	apollo_config.storage = sel;
 }
 
+#define APOLLO_LOG_FILE		USB_PATH "apollo.log"
+
+// Debug log to the SD card, if the setting is on: a fresh log every launch.
+// Without an SD card, logging stays on the serial console (TTY).
+void start_debug_log(void)
+{
+	if (apollo_config.dbglog && dbglogger_init_mode(FILE_LOGGER, APOLLO_LOG_FILE, 1) != FILE_LOGGER)
+		dbglogger_init_mode(TTY_LOGGER, NULL, 0);
+}
+
 void log_callback(int sel)
 {
-	dbglogger_init_mode(FILE_LOGGER, USB_PATH "apollo.log", 1);
-	show_message("Debug Logging Enabled!\n\n" USB_PATH "apollo.log");
+	apollo_config.dbglog = !sel;
+
+	if (!apollo_config.dbglog)
+	{
+		show_message("Debug Logging Disabled");
+		return;
+	}
+
+	if (dbglogger_init_mode(FILE_LOGGER, APOLLO_LOG_FILE, 1) != FILE_LOGGER)
+	{
+		apollo_config.dbglog = 0;
+		dbglogger_init_mode(TTY_LOGGER, NULL, 0);
+		show_message("Error! Couldn't create the log file:\n" APOLLO_LOG_FILE "\n\nUse a FAT formatted card in an SD card adapter");
+		return;
+	}
+
+	show_message("Debug Logging Enabled!\n\n" APOLLO_LOG_FILE);
 }
 
 /*

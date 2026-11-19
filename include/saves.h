@@ -8,6 +8,7 @@
 #define APOLLO_DATA_PATH		"/cd/APOLLO/DATA/"      // read-only app data on the disc: dctitleid.txt, *.savepatch
 #define APOLLO_LOCAL_CACHE		"/ram/"                // downloads and the online Saves DB cache (RAM disk)
 #define APOLLO_UPDATE_URL		"https://api.github.com/repos/bucanero/apollo-dc/releases/latest"
+#define APOLLO_RELEASES_URL		"github.com/bucanero/apollo-dc/releases"
 
 #define MAX_USB_DEVICES         5
 #define MAX_VMU_DEVICES         8           // 4 maple ports x 2 expansion slots
@@ -32,7 +33,7 @@
 #define ONLINE_URL              "https://bucanero.github.io/apollo-saves/"
 #define SAVEDB_PATH             "SAVEDB/DC/"        // offline Saves DB on the disc (or /sd/, /pc/)
 #define SAVEDB_TMP_PATH         "/ram/"             // where a DB save is unzipped before importing (no subfolders: the RAM disk has no mkdir)
-#define ONLINE_PATCH_URL        "https://bucanero.github.io/apollo-patches/PS2/"
+#define ONLINE_PATCH_URL        "https://bucanero.github.io/apollo-patches/DC/"
 #define ONLINE_CACHE_TIMEOUT    24*3600     // 1-day local cache
 
 
