@@ -8,6 +8,7 @@
 #   /1ST_READ.BIN       the app (mkdcdisc converts and scrambles the ELF)
 #   /APOLLO/DATA/       dctitleid.txt + DC *.savepatch, from apollo-patches
 #   /APOLLO/DATA/python/  the Python modules that [python:] codes import, from apollo-patches
+#   /APOLLO/DATA/lang_*.po  translations, picked by the BIOS language, from data/langs/
 #   /SAVEDB/DC/         offline Saves DB: games.txt, <game>/saves.txt, icon0.png, *.zip,
 #                       from apollo-saves DC/ (same layout as the online database)
 #
@@ -36,6 +37,10 @@ trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/APOLLO/DATA" "$STAGE/SAVEDB"
 cp "$PATCHES/dctitleid.txt" "$PATCHES"/DC/*.savepatch "$STAGE/APOLLO/DATA/"
 [ -d "$PATCHES/python" ] && cp -R "$PATCHES/python" "$STAGE/APOLLO/DATA/python"
+LANGS="$(dirname "$0")/../data/langs"
+for f in "$LANGS"/lang_*.po; do
+	if [ -e "$f" ]; then cp "$f" "$STAGE/APOLLO/DATA/"; fi
+done
 cp -R "$SAVES/DC" "$STAGE/SAVEDB/DC"
 # web pages for the GitHub site, not needed on the disc
 find "$STAGE/SAVEDB" -name README.md -delete

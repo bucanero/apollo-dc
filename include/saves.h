@@ -1,11 +1,12 @@
 #include <apollo.h>
 #include <dbglogger.h>
+#include "mini18n.h"
 #define LOG dbglogger_log
 
 #define APOLLO_PATH				"ms0:/APOLLO/"
 #define APOLLO_APP_PATH			"mass:/APOLLO/"
 #define APOLLO_USER_PATH		USB_PATH "PS2/EXPORT/"
-#define APOLLO_DATA_PATH		"/cd/APOLLO/DATA/"      // read-only app data on the disc: dctitleid.txt, *.savepatch
+#define APOLLO_DATA_PATH		"/cd/APOLLO/DATA/"      // read-only app data on the disc: dctitleid.txt, *.savepatch, lang_*.po
 #define APOLLO_LOCAL_CACHE		"/ram/"                // downloads and the online Saves DB cache (RAM disk)
 #define APOLLO_UPDATE_URL		"https://api.github.com/repos/bucanero/apollo-psp/releases/latest"
 

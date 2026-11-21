@@ -13,6 +13,7 @@ env:
   GLDC_COMMIT: d32a07cff0ce2954c8981b3e5092039e6e3b9776         # GLdc (libGL port) 1.1-726-gd32a
   SDL_COMMIT: 10f41e6820708efc74fb194db7d49bcc07a0b7e7          # GPF/SDL dreamcastSDL2, 2026-09-13
   APOLLO_LIB_COMMIT: 046f12a58af8dc3f8b51732eb688eeb5432891a5   # apollo-lib "v3 update for dc / ps2 (#80)"
+  MINI18N_COMMIT: 0717bb70ad453f0678b80325077ebc764481b927      # mini18n (localization)
   MKDCDISC_COMMIT: 2b98b0d9480e364e3517355648fbc3b49fb19882     # mkdcdisc
   ARCHIVE_URL: https://github.com/bucanero/ps3toolchain/releases/download/macos-latest-a5186b17
   ARCHIVE_KOS_PORTS_SHA256: a14d10f91241b7eedf6da6a01406916862e55cb5d1e0db1897cf02f8905b5c76
@@ -42,6 +43,7 @@ jobs:
           }
           git clone https://github.com/bucanero/dbglogger
           clone_at https://github.com/bucanero/apollo-lib $APOLLO_LIB_COMMIT apollo-lib
+          clone_at https://github.com/bucanero/mini18n $MINI18N_COMMIT mini18n
           clone_at https://github.com/GPF/SDL $SDL_COMMIT SDL
           rm -rf /opt/toolchains/dc/kos /opt/toolchains/dc/kos-ports
           clone_at https://github.com/KallistiOS/KallistiOS.git $KOS_COMMIT /opt/toolchains/dc/kos
@@ -128,6 +130,16 @@ jobs:
           cd apollo-lib
           # replace the archived apollo-lib (v1.4.0) with this one (MicroPython, 512 KB heap)
           make -f Makefile.DC install
+
+      - name: build mini18n
+        run: |
+          . /opt/toolchains/dc/kos/environ.sh
+          cd mini18n
+          # only the static library: the Dreamcast has no shared libraries
+          kos-cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
+          make -C build mini18n-static
+          cp build/src/libmini18n.a $KOS_PORTS/lib/
+          cp src/mini18n.h $KOS_PORTS/include/
 
       - name: build mkdcdisc
         run: |

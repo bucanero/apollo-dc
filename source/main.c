@@ -21,6 +21,9 @@
 #include <dc/sci.h>
 #include <dc/maple/vmu.h>
 #include <fat/fs_fat.h>
+#include <dc/fs_dcload.h>
+#include <dc/flashrom.h>
+#include <arch/arch.h>
 
 //Font
 #include "libfont.h"
@@ -439,6 +442,53 @@ static void terminate(void)
 //	AHX_Quit();
 }
 
+// The language set in the Dreamcast BIOS: Japanese, English, German, French, Spanish or Italian
+static const char* get_user_language(void)
+{
+	static const char* const langs[] = {
+		[FLASHROM_LANG_JAPANESE] = "ja",
+		[FLASHROM_LANG_ENGLISH]  = "en",
+		[FLASHROM_LANG_GERMAN]   = "de",
+		[FLASHROM_LANG_FRENCH]   = "fr",
+		[FLASHROM_LANG_SPANISH]  = "es",
+		[FLASHROM_LANG_ITALIAN]  = "it",
+	};
+	flashrom_syscfg_t cfg;
+
+	if (flashrom_get_syscfg(&cfg) < 0 || cfg.language < 0 || cfg.language > FLASHROM_LANG_ITALIAN)
+	{
+		LOG("BIOS language not available, using English");
+		return "en";
+	}
+
+	return langs[cfg.language];
+}
+
+// Load the translation for the BIOS language from the disc; English (the
+// source strings) needs no file, and a missing file falls back to English
+static void initLocalization(void)
+{
+	char path[256];
+	const char* lang = get_user_language();
+
+	LOG("BIOS language: %s", lang);
+	if (strcmp(lang, "en") != 0)
+	{
+		snprintf(path, sizeof(path), APOLLO_DATA_PATH "lang_%s.po", lang);
+		if (mini18n_set_locale(path) != SUCCESS)
+		{
+			LOG("Localization file not found: %s", path);
+			mini18n_close();
+		}
+	}
+
+	hdd_saves.title = (char*) _("VMU Saves");
+	usb_saves.title = (char*) _("External Saves");
+	vmc_saves.title = (char*) _("VMU Image");
+	online_saves.title = (char*) _("Saves Database");
+	user_backup.title = (char*) _("User Tools");
+}
+
 static int is_fat_partition(uint8_t type)
 {
 	switch (type)
@@ -645,6 +695,7 @@ int main(int argc, char *argv[])
 
 	// Load application settings
 	load_app_settings(&apollo_config);
+	initLocalization();
 
 	// Setup font
 	SetExtraSpace(-10);
@@ -697,7 +748,8 @@ int main(int argc, char *argv[])
 	SDL_DestroyWindow(window);
 	// Stop all SDL sub-systems
 	SDL_Quit();
-//	http_end();
+	http_end();
+	mini18n_close();
 	dcPadFinish();
 	terminate();
 

@@ -1,0 +1,23 @@
+# Apollo Save Tool (Dreamcast) - Spanish translation
+# Proof of concept: only the save list titles are translatable so far.
+msgid ""
+msgstr ""
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "VMU Saves"
+msgstr "Partidas en la VMU"
+
+msgid "External Saves"
+msgstr "Partidas externas"
+
+msgid "VMU Image"
+msgstr "Imagen de VMU"
+
+msgid "Saves Database"
+msgstr "Base de datos de partidas"
+
+msgid "User Tools"
+msgstr "Herramientas"

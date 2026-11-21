@@ -88,6 +88,7 @@ add_executable(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME}
+  mini18n
   CURL::libcurl
   SDL2
   pthread
