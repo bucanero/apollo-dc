@@ -111,7 +111,7 @@ void upd_appdata_callback(int sel)
 {
 	int i;
 
-	if (!http_download(ONLINE_PATCH_URL, "apollo-psp-update.zip", APOLLO_LOCAL_CACHE "appdata.zip", 1))
+	if (!http_download(ONLINE_PATCH_URL, "apollo-dc-update.zip", APOLLO_LOCAL_CACHE "appdata.zip", 1))
 	{
 		show_message("Error! Can't download data update pack!");
 		return;
