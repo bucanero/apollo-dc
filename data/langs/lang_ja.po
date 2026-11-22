@@ -1,0 +1,721 @@
+# Apollo Save Tool (Dreamcast) - Japanese translation
+msgid ""
+msgstr ""
+"Project-Id-Version: Apollo Save Tool (Dreamcast)\n"
+"Language-Team: github.com/bucanero\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-Basepath: ../source\n"
+"X-Poedit-KeywordsList: _;_i18n\n"
+"X-Poedit-SearchPath-0: .\n"
+
+#: dialog.c:62
+msgid "Cancel"
+msgstr "キャンセル"
+
+#: dialog.c:62 dialog.c:74
+msgid "OK"
+msgstr "OK"
+
+#: dialog.c:75
+msgid "No"
+msgstr "いいえ"
+
+#: dialog.c:75
+msgid "Yes"
+msgstr "はい"
+
+#: exec_cmd.c:59
+msgid "Error! No SD card found"
+msgstr "エラー!SDカードが見つかりません"
+
+#: exec_cmd.c:59
+msgid "Use a FAT formatted card in an SD card adapter"
+msgstr "FATでフォーマットしたカードをSDカードアダプタに入れてください"
+
+#: exec_cmd.c:61
+msgid "Error! Export folder is not available:"
+msgstr "エラー!エクスポートフォルダが利用できません:"
+
+#: exec_cmd.c:82
+msgid "Save game successfully extracted to:"
+msgstr "セーブデータを解凍しました:"
+
+#: exec_cmd.c:84 exec_cmd.c:898
+msgid "Error extracting save game:"
+msgstr "セーブデータの解凍に失敗しました:"
+
+#: exec_cmd.c:92 exec_cmd.c:889
+msgid "Error downloading save game from:"
+msgstr "セーブデータのダウンロード中にエラーが発生しました:"
+
+#: exec_cmd.c:97
+msgid "Save game successfully downloaded to:"
+msgstr "セーブデータが正常にダウンロードされました:"
+
+#: exec_cmd.c:99
+msgid "Error extracting save game!"
+msgstr "セーブデータの抽出に失敗しました!"
+
+#: exec_cmd.c:137
+msgid "All files extracted to:"
+msgstr "すべてのファイルは以下に抽出されました:"
+
+#: exec_cmd.c:139
+msgid "Error: %s couldn't be extracted"
+msgstr "エラー:%sを抽出できませんでした"
+
+#: exec_cmd.c:377
+msgid "Applying changes..."
+msgstr "変更を適用中..."
+
+#: exec_cmd.c:486 saves.c:709
+msgid "Add copy protection (lock save)"
+msgstr "コピー防止を設定 (セーブデータをロック)"
+
+#: exec_cmd.c:486 saves.c:707
+msgid "Remove copy protection (unlock save)"
+msgstr "コピー防止を解除 (セーブデータのロック解除)"
+
+#: exec_cmd.c:498
+msgid "Error! Couldn't change the save's copy protection"
+msgstr "エラー!セーブデータのコピー防止を変更できませんでした"
+
+#: exec_cmd.c:504
+msgid "Error! Cheat codes couldn't be applied"
+msgstr "エラー!チートコードを適用できませんでした"
+
+#: exec_cmd.c:506
+msgid "Save %s successfully modified!"
+msgstr "セーブデータ %s を変更しました!"
+
+#: exec_cmd.c:550 exec_cmd.c:732 exec_cmd.c:1133
+msgid "Overwrite it?"
+msgstr "上書きしますか?"
+
+#: exec_cmd.c:550 exec_cmd.c:732 exec_cmd.c:1133
+msgid "The save already exists:"
+msgstr "セーブデータは既に存在します:"
+
+#: exec_cmd.c:553
+msgid "Copying save game..."
+msgstr "セーブデータのコピー中..."
+
+#: exec_cmd.c:558
+msgid "Save successfully copied to:"
+msgstr "セーブデータをコピーしました:"
+
+#: exec_cmd.c:560 exec_cmd.c:742 settings.c:303
+msgid "(not enough free blocks?)"
+msgstr "(空きブロックが足りない可能性があります)"
+
+#: exec_cmd.c:560
+msgid "Error! Couldn't copy save to:"
+msgstr "エラー!セーブデータをコピーできませんでした:"
+
+#: exec_cmd.c:648
+msgid "Exporting save game..."
+msgstr "セーブデータをエクスポート中..."
+
+#: exec_cmd.c:654
+msgid "Save successfully exported to:"
+msgstr "正常にエクスポートされました:"
+
+#: exec_cmd.c:656
+msgid "Error! Couldn't export save:"
+msgstr "エラー!セーブデータをエクスポートできませんでした:"
+
+#: exec_cmd.c:672
+msgid "Exporting saves..."
+msgstr "セーブデータをエクスポート中..."
+
+#: exec_cmd.c:686
+msgid "Saves exported to:"
+msgstr "セーブデータのエクスポート先:"
+
+#: exec_cmd.c:724
+msgid "Error! Not a valid Dreamcast save:"
+msgstr "エラー!有効なドリームキャストのセーブデータではありません:"
+
+#: exec_cmd.c:735
+msgid "Importing save game..."
+msgstr "セーブデータをインポート中..."
+
+#: exec_cmd.c:740
+msgid "Save successfully imported to:"
+msgstr "セーブデータをインポートしました:"
+
+#: exec_cmd.c:742
+msgid "Error! Couldn't import save to:"
+msgstr "エラー!セーブデータをインポートできませんでした:"
+
+#: exec_cmd.c:757
+msgid "Copying saves..."
+msgstr "セーブデータをコピー中..."
+
+#: exec_cmd.c:783 exec_cmd.c:785
+msgid "Saves copied to:"
+msgstr "セーブデータのコピー先:"
+
+#: exec_cmd.c:783
+msgid "skipped: already on the target VMU"
+msgstr "件スキップ:コピー先のVMUに既に存在します"
+
+#: exec_cmd.c:790
+msgid "Reading VMU blocks..."
+msgstr "VMUのブロックを読み込み中..."
+
+#: exec_cmd.c:811
+msgid "Error! Not enough memory to dump the VMU"
+msgstr "エラー!VMUをダンプするためのメモリが足りません"
+
+#: exec_cmd.c:815
+msgid "Dumping VMU image..."
+msgstr "VMUイメージをダンプ中..."
+
+#: exec_cmd.c:821
+msgid "(was it removed?)"
+msgstr "(取り外されましたか?)"
+
+#: exec_cmd.c:821
+msgid "Error! Couldn't read VMU"
+msgstr "エラー!VMUを読み込めませんでした"
+
+#: exec_cmd.c:834
+msgid "Saving VMU image..."
+msgstr "VMUイメージを保存中..."
+
+#: exec_cmd.c:840
+msgid "Error! Couldn't write the VMU image:"
+msgstr "エラー!VMUイメージを書き込めませんでした:"
+
+#: exec_cmd.c:842
+msgid "VMU image saved, but the card doesn't look formatted:"
+msgstr "VMUイメージを保存しましたが、フォーマットされていないようです:"
+
+#: exec_cmd.c:844
+msgid "VMU image successfully saved to:"
+msgstr "VMUイメージを保存しました:"
+
+#: exec_cmd.c:918
+msgid "Error! No .VMI or .DCI save found in:"
+msgstr "エラー!.VMIまたは.DCIのセーブデータが見つかりません:"
+
+#: exec_cmd.c:928
+msgid "Delete this save?"
+msgstr "このセーブデータを削除しますか?"
+
+#: exec_cmd.c:928
+msgid "This can't be undone!"
+msgstr "元に戻すことはできません!"
+
+#: exec_cmd.c:933 exec_cmd.c:1020
+msgid "Deleting save..."
+msgstr "セーブデータを削除中..."
+
+#: exec_cmd.c:939
+msgid "Save successfully deleted:"
+msgstr "削除が正常に完了しました:"
+
+#: exec_cmd.c:941 exec_cmd.c:1025
+msgid "Error! Couldn't delete save:"
+msgstr "エラー!セーブデータを削除できませんでした:"
+
+#: exec_cmd.c:1041 exec_cmd.c:1116
+msgid "Error! Couldn't read save:"
+msgstr "エラー!セーブデータを読み込めませんでした:"
+
+#: exec_cmd.c:1049
+msgid "Error! VMU mini-games can't be compressed:"
+msgstr "エラー!VMUのミニゲームは圧縮できません:"
+
+#: exec_cmd.c:1053
+msgid "Compressing save..."
+msgstr "セーブデータを圧縮中..."
+
+#: exec_cmd.c:1060
+msgid "Error! Couldn't compress save:"
+msgstr "エラー!セーブデータを圧縮できませんでした:"
+
+#: exec_cmd.c:1064
+msgid "VMZip doesn't make this save smaller:"
+msgstr "VMZipではこのセーブデータは小さくなりません:"
+
+#: exec_cmd.c:1065
+msgid "Compress it anyway?"
+msgstr "それでも圧縮しますか?"
+
+#: exec_cmd.c:1065 exec_cmd.c:1100
+msgid "blocks"
+msgstr "ブロック"
+
+#: exec_cmd.c:1074
+msgid "Error! Couldn't find a free VMZip file name on %s"
+msgstr "エラー!%sに空いているVMZipファイル名がありません"
+
+#: exec_cmd.c:1081 exec_cmd.c:1142
+msgid "Error! Not enough free blocks on:"
+msgstr "エラー!空きブロックが足りません:"
+
+#: exec_cmd.c:1081 exec_cmd.c:1142
+msgid "free"
+msgstr "空き"
+
+#: exec_cmd.c:1081 exec_cmd.c:1142
+msgid "needed"
+msgstr "必要"
+
+#: exec_cmd.c:1086
+msgid "Writing VMZip save..."
+msgstr "VMZipセーブデータを書き込み中..."
+
+#: exec_cmd.c:1093 exec_cmd.c:1154
+msgid "Error! Couldn't write %s to %s"
+msgstr "エラー!%sを%sに書き込めませんでした"
+
+#: exec_cmd.c:1099
+msgid "Save compressed to:"
+msgstr "セーブデータを圧縮しました:"
+
+#: exec_cmd.c:1102
+msgid "Delete the original save?"
+msgstr "元のセーブデータを削除しますか?"
+
+#: exec_cmd.c:1121
+msgid "Decompressing save..."
+msgstr "セーブデータを展開中..."
+
+#: exec_cmd.c:1128
+msgid "Error! Not a valid VMZip save:"
+msgstr "エラー!有効なVMZipセーブデータではありません:"
+
+#: exec_cmd.c:1147
+msgid "Writing save..."
+msgstr "セーブデータを書き込み中..."
+
+#: exec_cmd.c:1159
+msgid "Save decompressed to:"
+msgstr "セーブデータを展開しました:"
+
+#: exec_cmd.c:1161
+msgid "Delete the VMZip save?"
+msgstr "VMZipセーブデータを削除しますか?"
+
+#: exec_cmd.c:1169
+msgid "Download URL"
+msgstr "ダウンロードURL"
+
+#: exec_cmd.c:1175
+msgid "File successfully downloaded to:"
+msgstr "ファイルのダウンロードに成功しました:"
+
+#: exec_cmd.c:1177
+msgid "Error! File couldn't be downloaded"
+msgstr "エラー!ファイルをダウンロードできませんでした"
+
+#: http.c:34
+msgid "Connecting to the network..."
+msgstr "ネットワークに接続中..."
+
+#: http.c:120
+msgid "Downloading..."
+msgstr "ダウンロード中..."
+
+#: main.c:157 main.c:162 main.c:167 main.c:173 main.c:177
+msgid "Back"
+msgstr "戻る"
+
+#: main.c:157 menu_cheats.c:255
+msgid "Details"
+msgstr "詳細"
+
+#: main.c:157 main.c:162
+msgid "Refresh"
+msgstr "更新"
+
+#: main.c:157 main.c:162 main.c:167 main.c:177
+msgid "Select"
+msgstr "選択"
+
+#: main.c:177
+msgid "View Code"
+msgstr "コードを表示"
+
+#: main.c:181
+msgid "Exit"
+msgstr "終了"
+
+#: main.c:181
+msgid "Value Down"
+msgstr "値を下げる"
+
+#: main.c:181
+msgid "Value Up"
+msgstr "値を上げる"
+
+#: main.c:358
+msgid "No VMU detected!"
+msgstr "ビジュアルメモリが見つかりません!"
+
+#: main.c:358
+msgid "Please insert a Visual Memory Unit in a controller slot"
+msgstr "コントローラーにビジュアルメモリを挿してください"
+
+#: main.c:372
+msgid "Select VMU"
+msgstr "VMUを選択"
+
+#: main.c:516
+msgid "VMU Saves"
+msgstr "VMUセーブデータ"
+
+#: main.c:517
+msgid "External Saves"
+msgstr "外部セーブ"
+
+#: main.c:518
+msgid "VMU Image"
+msgstr "VMUイメージ"
+
+#: main.c:519
+msgid "Saves Database"
+msgstr "セーブデータベース"
+
+#: main.c:520
+msgid "User Tools"
+msgstr "ユーザーツール"
+
+#: menu_about.c:59 menu_about.c:79
+msgid "About"
+msgstr "概要"
+
+#: menu_cheats.c:111 menu_cheats.c:144 menu_cheats.c:164
+msgid "Options"
+msgstr "オプション"
+
+#: menu_cheats.c:209
+msgid "Target File:"
+msgstr "対象ファイル:"
+
+#: menu_cheats.c:516
+msgid "Saves"
+msgstr "セーブデータ"
+
+#: menu_cheats.c:521
+msgid "Games"
+msgstr "ゲーム"
+
+#: menu_cheats.c:525
+msgid "Tools"
+msgstr "ツール"
+
+#: menu_hex.c:51 menu_hex.c:71
+msgid "Hex Editor"
+msgstr "Hexエディタ"
+
+#: menu_main.c:70
+msgid "Loading saves..."
+msgstr "セーブデータを読み込み中..."
+
+#: menu_main.c:82
+msgid "No save-games found"
+msgstr "セーブデータが見つかりませんでした"
+
+#: menu_main.c:146
+msgid "Error getting details (%s)"
+msgstr "詳細を取得できませんでした (%s)"
+
+#: menu_main.c:319 menu_main.c:671
+msgid "Patch view"
+msgstr "パッチ表示"
+
+#: menu_main.c:432
+msgid "No data found in folder:"
+msgstr "フォルダ内にデータが見つかりません:"
+
+#: menu_main.c:485
+msgid "Exit Apollo?"
+msgstr "Apolloを終了しますか?"
+
+#: menu_main.c:613
+msgid "Save changes to %s?"
+msgstr "変更を%sに保存しますか?"
+
+#: menu_main.c:617
+msgid "Error! Couldn't save changes to:"
+msgstr "エラー!変更を保存できませんでした:"
+
+#: menu_main.c:707
+msgid "Unable to load"
+msgstr "読み込めません"
+
+#: menu_options.c:65 menu_options.c:85
+msgid "Settings"
+msgstr "設定"
+
+#: saves.c:289
+msgid "this VMU"
+msgstr "このVMU"
+
+#: saves.c:289
+msgid "this VMU image"
+msgstr "このVMUイメージ"
+
+#: saves.c:373
+msgid "Import to"
+msgstr "インポート先:"
+
+#: saves.c:378 saves.c:382
+msgid "Extract .VMI/.VMS to"
+msgstr ".VMI/.VMSの解凍先:"
+
+#: saves.c:613
+msgid "Cheats"
+msgstr "チート"
+
+#: saves.c:616
+msgid "View Raw Patch File"
+msgstr "Rawパッチファイルを表示"
+
+#: saves.c:641
+msgid "Import %s"
+msgstr "%sをインポート"
+
+#: saves.c:678 saves.c:700 saves.c:1142
+msgid "View Save Details"
+msgstr "セーブデータの詳細を表示"
+
+#: saves.c:681
+msgid "VMZip"
+msgstr "VMZip"
+
+#: saves.c:683
+msgid "Decompress VMZip save"
+msgstr "VMZipセーブデータを展開"
+
+#: saves.c:683
+msgid "Decompress to"
+msgstr "展開先:"
+
+#: saves.c:685 saves.c:712
+msgid "Save Game Backup"
+msgstr "セーブデータバックアップ"
+
+#: saves.c:687 saves.c:715
+msgid "Copy save game to another VMU"
+msgstr "セーブデータを別のVMUにコピー"
+
+#: saves.c:687 saves.c:715 saves.c:1108 saves.c:1109 saves.c:1148 saves.c:1210
+#: saves.c:1211
+msgid "Copy to"
+msgstr "コピー先:"
+
+#: saves.c:688 saves.c:716 saves.c:1212 saves.c:1213
+msgid "Export .DCI to"
+msgstr ".DCIのエクスポート先:"
+
+#: saves.c:688 saves.c:716
+msgid "Export save game to .DCI format"
+msgstr "セーブデータを.DCI形式でエクスポート"
+
+#: saves.c:689 saves.c:717
+msgid "Export .VMI/.VMS to"
+msgstr ".VMI/.VMSのエクスポート先:"
+
+#: saves.c:689 saves.c:717
+msgid "Export save game to .VMI/.VMS format"
+msgstr "セーブデータを.VMI/.VMS形式でエクスポート"
+
+#: saves.c:691 saves.c:733
+msgid "Delete Save Game"
+msgstr "セーブデータを削除"
+
+#: saves.c:697
+msgid "Apply Changes"
+msgstr "変更を適用"
+
+#: saves.c:704
+msgid "Save Permissions"
+msgstr "セーブデータの権限"
+
+#: saves.c:719
+msgid "Save Game Tools"
+msgstr "セーブデータツール"
+
+#: saves.c:724
+msgid "Compress save with VMZip"
+msgstr "VMZipでセーブデータを圧縮"
+
+#: saves.c:724
+msgid "Compress to"
+msgstr "圧縮先:"
+
+#: saves.c:727
+msgid "Hex Edit save game file"
+msgstr "セーブデータをHex編集"
+
+#: saves.c:832
+msgid "Extract Archives (Zip, 7z)"
+msgstr "アーカイブを解凍 (Zip, 7z)"
+
+#: saves.c:859
+msgid "Local Web Server (full system access)"
+msgstr "ローカルWebサーバー (フルシステムアクセス)"
+
+#: saves.c:882
+msgid "Extract %s%s"
+msgstr "%s%sを解凍"
+
+#: saves.c:1080 saves.c:1205
+msgid "VMU image"
+msgstr "VMUイメージ"
+
+#: saves.c:1100 saves.c:1198
+msgid "Bulk Save Management"
+msgstr "セーブデータ一括管理"
+
+#: saves.c:1108 saves.c:1210
+msgid "Copy selected Saves to a VMU"
+msgstr "選択したセーブデータをVMUにコピー"
+
+#: saves.c:1109 saves.c:1211
+msgid "Copy all Saves to a VMU"
+msgstr "すべてのセーブデータをVMUにコピー"
+
+#: saves.c:1145
+msgid "Save Game Import"
+msgstr "セーブデータのインポート"
+
+#: saves.c:1148
+msgid "Copy save game to a VMU"
+msgstr "セーブデータをVMUにコピー"
+
+#: saves.c:1210
+msgid "Copy selected Saves to another VMU"
+msgstr "選択したセーブデータを別のVMUにコピー"
+
+#: saves.c:1211
+msgid "Copy all Saves to another VMU"
+msgstr "すべてのセーブデータを別のVMUにコピー"
+
+#: saves.c:1212
+msgid "Export selected Saves to .DCI"
+msgstr "選択したセーブデータを.DCIでエクスポート"
+
+#: saves.c:1213
+msgid "Export all Saves to .DCI"
+msgstr "すべてのセーブデータを.DCIでエクスポート"
+
+#: saves.c:1217
+msgid "Memory Card Backup"
+msgstr "メモリーカードのバックアップ"
+
+#: saves.c:1219
+msgid "Dump VMU image to"
+msgstr "VMUイメージのダンプ先:"
+
+#: saves.c:1219
+msgid "Dump full VMU image (.BIN)"
+msgstr "VMUイメージを丸ごとダンプ (.BIN)"
+
+#: saves.c:1227
+msgid "Import Saves to VMU"
+msgstr "セーブデータをVMUにインポート"
+
+#: saves.c:1227
+msgid "Import Saves to VMU image"
+msgstr "セーブデータをVMUイメージにインポート"
+
+#: saves.c:1249
+msgid "%s (%d blocks)"
+msgstr "%s (%dブロック)"
+
+#: settings.c:25
+msgid "Disabled"
+msgstr "無効"
+
+#: settings.c:25
+msgid "by Name"
+msgstr "名前順"
+
+#: settings.c:25
+msgid "by Title ID"
+msgstr "タイトルID順"
+
+#: settings.c:28
+msgid "Background Music"
+msgstr "BGM"
+
+#: settings.c:34
+msgid "Menu Animations"
+msgstr "メニューアニメーション"
+
+#: settings.c:40
+msgid "Sort Saves"
+msgstr "セーブデータを並び替える"
+
+#: settings.c:46
+msgid "External Saves Source"
+msgstr "外部セーブデータソース"
+
+#: settings.c:66
+msgid "Clear Local Cache"
+msgstr "ローカルキャッシュを消去"
+
+#: settings.c:72
+msgid "Enable Debug Log"
+msgstr "デバッグログを有効化"
+
+#: settings.c:110
+msgid "Local cache folder cleaned:"
+msgstr "ローカルキャッシュフォルダをクリーンアップしました:"
+
+#: settings.c:119
+msgid "Error! Can't download data update pack!"
+msgstr "エラー!データ更新パックをダウンロードできません!"
+
+#: settings.c:124
+msgid "Successfully updated %d data files!"
+msgstr "%d個のデータファイルを更新しました!"
+
+#: settings.c:126
+msgid "Error! Can't extract data update pack!"
+msgstr "エラー!データ更新パックを展開できません!"
+
+#: settings.c:197
+msgid "New version available! Download update?"
+msgstr "新しいバージョンが利用可能です!アップデートをダウンロードしますか?"
+
+#: settings.c:200
+msgid "Update downloaded to ms0:/APOLLO/apollo-psp.zip"
+msgstr "アップデートをダウンロードしました: ms0:/APOLLO/apollo-psp.zip"
+
+#: settings.c:202
+msgid "Download error!"
+msgstr "ダウンロードエラー!"
+
+#: settings.c:218
+msgid "Debug Logging Enabled!"
+msgstr "デバッグログ有効!"
+
+#: settings.c:284
+msgid "No VMU found!"
+msgstr "VMUが見つかりません!"
+
+#: settings.c:284
+msgid "Settings couldn't be saved"
+msgstr "設定を保存できませんでした"
+
+#: settings.c:303
+msgid "Error! Settings couldn't be saved to:"
+msgstr "エラー!設定を保存できませんでした:"
+
+#: vmu_dev.c:65
+msgid "VMU %c%d - %d blocks free"
+msgstr "VMU %c%d - 空き %d ブロック"
+
+#: zip_util.c:153
+msgid "Extracting files..."
+msgstr "ファイルを抽出中..."

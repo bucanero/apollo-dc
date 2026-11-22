@@ -1,0 +1,721 @@
+# Apollo Save Tool (Dreamcast) - Italian translation
+msgid ""
+msgstr ""
+"Project-Id-Version: Apollo Save Tool (Dreamcast)\n"
+"Language-Team: github.com/bucanero\n"
+"Language: it\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-Basepath: ../source\n"
+"X-Poedit-KeywordsList: _;_i18n\n"
+"X-Poedit-SearchPath-0: .\n"
+
+#: dialog.c:62
+msgid "Cancel"
+msgstr "Annulla"
+
+#: dialog.c:62 dialog.c:74
+msgid "OK"
+msgstr "OK"
+
+#: dialog.c:75
+msgid "No"
+msgstr "No"
+
+#: dialog.c:75
+msgid "Yes"
+msgstr "Sì"
+
+#: exec_cmd.c:59
+msgid "Error! No SD card found"
+msgstr "Errore! Nessuna scheda SD trovata"
+
+#: exec_cmd.c:59
+msgid "Use a FAT formatted card in an SD card adapter"
+msgstr "Usa una scheda formattata FAT in un adattatore per schede SD"
+
+#: exec_cmd.c:61
+msgid "Error! Export folder is not available:"
+msgstr "Errore! Cartella di esportazione non disponibile:"
+
+#: exec_cmd.c:82
+msgid "Save game successfully extracted to:"
+msgstr "Salvataggio estratto con successo in:"
+
+#: exec_cmd.c:84 exec_cmd.c:898
+msgid "Error extracting save game:"
+msgstr "Errore nell'estrazione del salvataggio:"
+
+#: exec_cmd.c:92 exec_cmd.c:889
+msgid "Error downloading save game from:"
+msgstr "Errore nel download del salvataggio da:"
+
+#: exec_cmd.c:97
+msgid "Save game successfully downloaded to:"
+msgstr "Salvataggio scaricato con successo in:"
+
+#: exec_cmd.c:99
+msgid "Error extracting save game!"
+msgstr "Errore nell'estrazione del salvataggio!"
+
+#: exec_cmd.c:137
+msgid "All files extracted to:"
+msgstr "Tutti i file estratti in:"
+
+#: exec_cmd.c:139
+msgid "Error: %s couldn't be extracted"
+msgstr "Errore: impossibile estrarre %s"
+
+#: exec_cmd.c:377
+msgid "Applying changes..."
+msgstr "Applicazione delle modifiche in corso..."
+
+#: exec_cmd.c:486 saves.c:709
+msgid "Add copy protection (lock save)"
+msgstr "Aggiungi protezione dalla copia (blocca salvataggio)"
+
+#: exec_cmd.c:486 saves.c:707
+msgid "Remove copy protection (unlock save)"
+msgstr "Rimuovi protezione dalla copia (sblocca salvataggio)"
+
+#: exec_cmd.c:498
+msgid "Error! Couldn't change the save's copy protection"
+msgstr "Errore! Impossibile modificare la protezione dalla copia"
+
+#: exec_cmd.c:504
+msgid "Error! Cheat codes couldn't be applied"
+msgstr "Errore! Impossibile applicare i cheat code"
+
+#: exec_cmd.c:506
+msgid "Save %s successfully modified!"
+msgstr "Salvataggio %s modificato con successo!"
+
+#: exec_cmd.c:550 exec_cmd.c:732 exec_cmd.c:1133
+msgid "Overwrite it?"
+msgstr "Sovrascriverlo?"
+
+#: exec_cmd.c:550 exec_cmd.c:732 exec_cmd.c:1133
+msgid "The save already exists:"
+msgstr "Il salvataggio esiste già:"
+
+#: exec_cmd.c:553
+msgid "Copying save game..."
+msgstr "Copia del salvataggio in corso..."
+
+#: exec_cmd.c:558
+msgid "Save successfully copied to:"
+msgstr "Salvataggio copiato con successo in:"
+
+#: exec_cmd.c:560 exec_cmd.c:742 settings.c:303
+msgid "(not enough free blocks?)"
+msgstr "(blocchi liberi insufficienti?)"
+
+#: exec_cmd.c:560
+msgid "Error! Couldn't copy save to:"
+msgstr "Errore! Impossibile copiare il salvataggio in:"
+
+#: exec_cmd.c:648
+msgid "Exporting save game..."
+msgstr "Esportazione del salvataggio in corso..."
+
+#: exec_cmd.c:654
+msgid "Save successfully exported to:"
+msgstr "Salvataggio esportato con successo in:"
+
+#: exec_cmd.c:656
+msgid "Error! Couldn't export save:"
+msgstr "Errore! Impossibile esportare il salvataggio:"
+
+#: exec_cmd.c:672
+msgid "Exporting saves..."
+msgstr "Esportazione dei salvataggi in corso..."
+
+#: exec_cmd.c:686
+msgid "Saves exported to:"
+msgstr "Salvataggi esportati in:"
+
+#: exec_cmd.c:724
+msgid "Error! Not a valid Dreamcast save:"
+msgstr "Errore! Salvataggio Dreamcast non valido:"
+
+#: exec_cmd.c:735
+msgid "Importing save game..."
+msgstr "Importazione del salvataggio in corso..."
+
+#: exec_cmd.c:740
+msgid "Save successfully imported to:"
+msgstr "Salvataggio importato con successo in:"
+
+#: exec_cmd.c:742
+msgid "Error! Couldn't import save to:"
+msgstr "Errore! Impossibile importare il salvataggio in:"
+
+#: exec_cmd.c:757
+msgid "Copying saves..."
+msgstr "Copia dei salvataggi in corso..."
+
+#: exec_cmd.c:783 exec_cmd.c:785
+msgid "Saves copied to:"
+msgstr "Salvataggi copiati in:"
+
+#: exec_cmd.c:783
+msgid "skipped: already on the target VMU"
+msgstr "saltati: già presenti sulla VMU di destinazione"
+
+#: exec_cmd.c:790
+msgid "Reading VMU blocks..."
+msgstr "Lettura dei blocchi della VMU..."
+
+#: exec_cmd.c:811
+msgid "Error! Not enough memory to dump the VMU"
+msgstr "Errore! Memoria insufficiente per copiare la VMU"
+
+#: exec_cmd.c:815
+msgid "Dumping VMU image..."
+msgstr "Copia dell'immagine della VMU in corso..."
+
+#: exec_cmd.c:821
+msgid "(was it removed?)"
+msgstr "(è stata rimossa?)"
+
+#: exec_cmd.c:821
+msgid "Error! Couldn't read VMU"
+msgstr "Errore! Impossibile leggere la VMU"
+
+#: exec_cmd.c:834
+msgid "Saving VMU image..."
+msgstr "Salvataggio dell'immagine della VMU..."
+
+#: exec_cmd.c:840
+msgid "Error! Couldn't write the VMU image:"
+msgstr "Errore! Impossibile scrivere l'immagine della VMU:"
+
+#: exec_cmd.c:842
+msgid "VMU image saved, but the card doesn't look formatted:"
+msgstr "Immagine della VMU salvata, ma la scheda non sembra formattata:"
+
+#: exec_cmd.c:844
+msgid "VMU image successfully saved to:"
+msgstr "Immagine della VMU salvata con successo in:"
+
+#: exec_cmd.c:918
+msgid "Error! No .VMI or .DCI save found in:"
+msgstr "Errore! Nessun salvataggio .VMI o .DCI trovato in:"
+
+#: exec_cmd.c:928
+msgid "Delete this save?"
+msgstr "Eliminare questo salvataggio?"
+
+#: exec_cmd.c:928
+msgid "This can't be undone!"
+msgstr "Questa operazione non può essere annullata!"
+
+#: exec_cmd.c:933 exec_cmd.c:1020
+msgid "Deleting save..."
+msgstr "Eliminazione del salvataggio in corso..."
+
+#: exec_cmd.c:939
+msgid "Save successfully deleted:"
+msgstr "Salvataggio eliminato con successo:"
+
+#: exec_cmd.c:941 exec_cmd.c:1025
+msgid "Error! Couldn't delete save:"
+msgstr "Errore! Impossibile eliminare il salvataggio:"
+
+#: exec_cmd.c:1041 exec_cmd.c:1116
+msgid "Error! Couldn't read save:"
+msgstr "Errore! Impossibile leggere il salvataggio:"
+
+#: exec_cmd.c:1049
+msgid "Error! VMU mini-games can't be compressed:"
+msgstr "Errore! I minigiochi della VMU non possono essere compressi:"
+
+#: exec_cmd.c:1053
+msgid "Compressing save..."
+msgstr "Compressione del salvataggio in corso..."
+
+#: exec_cmd.c:1060
+msgid "Error! Couldn't compress save:"
+msgstr "Errore! Impossibile comprimere il salvataggio:"
+
+#: exec_cmd.c:1064
+msgid "VMZip doesn't make this save smaller:"
+msgstr "VMZip non riduce le dimensioni di questo salvataggio:"
+
+#: exec_cmd.c:1065
+msgid "Compress it anyway?"
+msgstr "Comprimerlo comunque?"
+
+#: exec_cmd.c:1065 exec_cmd.c:1100
+msgid "blocks"
+msgstr "blocchi"
+
+#: exec_cmd.c:1074
+msgid "Error! Couldn't find a free VMZip file name on %s"
+msgstr "Errore! Nessun nome file VMZip libero su %s"
+
+#: exec_cmd.c:1081 exec_cmd.c:1142
+msgid "Error! Not enough free blocks on:"
+msgstr "Errore! Blocchi liberi insufficienti su:"
+
+#: exec_cmd.c:1081 exec_cmd.c:1142
+msgid "free"
+msgstr "liberi"
+
+#: exec_cmd.c:1081 exec_cmd.c:1142
+msgid "needed"
+msgstr "necessari"
+
+#: exec_cmd.c:1086
+msgid "Writing VMZip save..."
+msgstr "Scrittura del salvataggio VMZip..."
+
+#: exec_cmd.c:1093 exec_cmd.c:1154
+msgid "Error! Couldn't write %s to %s"
+msgstr "Errore! Impossibile scrivere %s su %s"
+
+#: exec_cmd.c:1099
+msgid "Save compressed to:"
+msgstr "Salvataggio compresso in:"
+
+#: exec_cmd.c:1102
+msgid "Delete the original save?"
+msgstr "Eliminare il salvataggio originale?"
+
+#: exec_cmd.c:1121
+msgid "Decompressing save..."
+msgstr "Decompressione del salvataggio in corso..."
+
+#: exec_cmd.c:1128
+msgid "Error! Not a valid VMZip save:"
+msgstr "Errore! Salvataggio VMZip non valido:"
+
+#: exec_cmd.c:1147
+msgid "Writing save..."
+msgstr "Scrittura del salvataggio..."
+
+#: exec_cmd.c:1159
+msgid "Save decompressed to:"
+msgstr "Salvataggio decompresso in:"
+
+#: exec_cmd.c:1161
+msgid "Delete the VMZip save?"
+msgstr "Eliminare il salvataggio VMZip?"
+
+#: exec_cmd.c:1169
+msgid "Download URL"
+msgstr "URL di download"
+
+#: exec_cmd.c:1175
+msgid "File successfully downloaded to:"
+msgstr "File scaricato con successo in:"
+
+#: exec_cmd.c:1177
+msgid "Error! File couldn't be downloaded"
+msgstr "Errore! Impossibile scaricare il file"
+
+#: http.c:34
+msgid "Connecting to the network..."
+msgstr "Connessione alla rete in corso..."
+
+#: http.c:120
+msgid "Downloading..."
+msgstr "Download in corso..."
+
+#: main.c:157 main.c:162 main.c:167 main.c:173 main.c:177
+msgid "Back"
+msgstr "Indietro"
+
+#: main.c:157 menu_cheats.c:255
+msgid "Details"
+msgstr "Dettagli"
+
+#: main.c:157 main.c:162
+msgid "Refresh"
+msgstr "Aggiorna"
+
+#: main.c:157 main.c:162 main.c:167 main.c:177
+msgid "Select"
+msgstr "Seleziona"
+
+#: main.c:177
+msgid "View Code"
+msgstr "Visualizza Codice"
+
+#: main.c:181
+msgid "Exit"
+msgstr "Esci"
+
+#: main.c:181
+msgid "Value Down"
+msgstr "Diminuisci Valore"
+
+#: main.c:181
+msgid "Value Up"
+msgstr "Aumenta Valore"
+
+#: main.c:358
+msgid "No VMU detected!"
+msgstr "Nessuna VMU rilevata!"
+
+#: main.c:358
+msgid "Please insert a Visual Memory Unit in a controller slot"
+msgstr "Inserisci una Visual Memory Unit in un controller"
+
+#: main.c:372
+msgid "Select VMU"
+msgstr "Seleziona VMU"
+
+#: main.c:516
+msgid "VMU Saves"
+msgstr "Salvataggi VMU"
+
+#: main.c:517
+msgid "External Saves"
+msgstr "Salvataggi Esterni"
+
+#: main.c:518
+msgid "VMU Image"
+msgstr "Immagine VMU"
+
+#: main.c:519
+msgid "Saves Database"
+msgstr "Database Salvataggi"
+
+#: main.c:520
+msgid "User Tools"
+msgstr "Strumenti Utente"
+
+#: menu_about.c:59 menu_about.c:79
+msgid "About"
+msgstr "Informazioni"
+
+#: menu_cheats.c:111 menu_cheats.c:144 menu_cheats.c:164
+msgid "Options"
+msgstr "Opzioni"
+
+#: menu_cheats.c:209
+msgid "Target File:"
+msgstr "File di destinazione:"
+
+#: menu_cheats.c:516
+msgid "Saves"
+msgstr "Salvataggi"
+
+#: menu_cheats.c:521
+msgid "Games"
+msgstr "Giochi"
+
+#: menu_cheats.c:525
+msgid "Tools"
+msgstr "Strumenti"
+
+#: menu_hex.c:51 menu_hex.c:71
+msgid "Hex Editor"
+msgstr "Editor Esadecimale"
+
+#: menu_main.c:70
+msgid "Loading saves..."
+msgstr "Caricamento dei salvataggi..."
+
+#: menu_main.c:82
+msgid "No save-games found"
+msgstr "Nessun salvataggio trovato"
+
+#: menu_main.c:146
+msgid "Error getting details (%s)"
+msgstr "Errore nella lettura dei dettagli (%s)"
+
+#: menu_main.c:319 menu_main.c:671
+msgid "Patch view"
+msgstr "Vista patch"
+
+#: menu_main.c:432
+msgid "No data found in folder:"
+msgstr "Nessun dato trovato nella cartella:"
+
+#: menu_main.c:485
+msgid "Exit Apollo?"
+msgstr "Uscire da Apollo?"
+
+#: menu_main.c:613
+msgid "Save changes to %s?"
+msgstr "Salvare le modifiche in %s?"
+
+#: menu_main.c:617
+msgid "Error! Couldn't save changes to:"
+msgstr "Errore! Impossibile salvare le modifiche in:"
+
+#: menu_main.c:707
+msgid "Unable to load"
+msgstr "Impossibile caricare"
+
+#: menu_options.c:65 menu_options.c:85
+msgid "Settings"
+msgstr "Impostazioni"
+
+#: saves.c:289
+msgid "this VMU"
+msgstr "questa VMU"
+
+#: saves.c:289
+msgid "this VMU image"
+msgstr "questa immagine VMU"
+
+#: saves.c:373
+msgid "Import to"
+msgstr "Importa in"
+
+#: saves.c:378 saves.c:382
+msgid "Extract .VMI/.VMS to"
+msgstr "Estrai .VMI/.VMS in"
+
+#: saves.c:613
+msgid "Cheats"
+msgstr "Trucchi"
+
+#: saves.c:616
+msgid "View Raw Patch File"
+msgstr "Visualizza File Patch Raw"
+
+#: saves.c:641
+msgid "Import %s"
+msgstr "Importa %s"
+
+#: saves.c:678 saves.c:700 saves.c:1142
+msgid "View Save Details"
+msgstr "Visualizza Dettagli Salvataggio"
+
+#: saves.c:681
+msgid "VMZip"
+msgstr "VMZip"
+
+#: saves.c:683
+msgid "Decompress VMZip save"
+msgstr "Decomprimi salvataggio VMZip"
+
+#: saves.c:683
+msgid "Decompress to"
+msgstr "Decomprimi in"
+
+#: saves.c:685 saves.c:712
+msgid "Save Game Backup"
+msgstr "Backup Salvataggio"
+
+#: saves.c:687 saves.c:715
+msgid "Copy save game to another VMU"
+msgstr "Copia il salvataggio su un'altra VMU"
+
+#: saves.c:687 saves.c:715 saves.c:1108 saves.c:1109 saves.c:1148 saves.c:1210
+#: saves.c:1211
+msgid "Copy to"
+msgstr "Copia in"
+
+#: saves.c:688 saves.c:716 saves.c:1212 saves.c:1213
+msgid "Export .DCI to"
+msgstr "Esporta .DCI in"
+
+#: saves.c:688 saves.c:716
+msgid "Export save game to .DCI format"
+msgstr "Esporta il salvataggio in formato .DCI"
+
+#: saves.c:689 saves.c:717
+msgid "Export .VMI/.VMS to"
+msgstr "Esporta .VMI/.VMS in"
+
+#: saves.c:689 saves.c:717
+msgid "Export save game to .VMI/.VMS format"
+msgstr "Esporta il salvataggio in formato .VMI/.VMS"
+
+#: saves.c:691 saves.c:733
+msgid "Delete Save Game"
+msgstr "Elimina Salvataggio"
+
+#: saves.c:697
+msgid "Apply Changes"
+msgstr "Applica Modifiche"
+
+#: saves.c:704
+msgid "Save Permissions"
+msgstr "Permessi Salvataggio"
+
+#: saves.c:719
+msgid "Save Game Tools"
+msgstr "Strumenti Salvataggio"
+
+#: saves.c:724
+msgid "Compress save with VMZip"
+msgstr "Comprimi salvataggio con VMZip"
+
+#: saves.c:724
+msgid "Compress to"
+msgstr "Comprimi in"
+
+#: saves.c:727
+msgid "Hex Edit save game file"
+msgstr "Modifica il salvataggio in esadecimale"
+
+#: saves.c:832
+msgid "Extract Archives (Zip, 7z)"
+msgstr "Estrai Archivi (Zip, 7z)"
+
+#: saves.c:859
+msgid "Local Web Server (full system access)"
+msgstr "Web Server Locale (accesso completo al sistema)"
+
+#: saves.c:882
+msgid "Extract %s%s"
+msgstr "Estrai %s%s"
+
+#: saves.c:1080 saves.c:1205
+msgid "VMU image"
+msgstr "Immagine VMU"
+
+#: saves.c:1100 saves.c:1198
+msgid "Bulk Save Management"
+msgstr "Gestione Salvataggi in Blocco"
+
+#: saves.c:1108 saves.c:1210
+msgid "Copy selected Saves to a VMU"
+msgstr "Copia i salvataggi selezionati su una VMU"
+
+#: saves.c:1109 saves.c:1211
+msgid "Copy all Saves to a VMU"
+msgstr "Copia tutti i salvataggi su una VMU"
+
+#: saves.c:1145
+msgid "Save Game Import"
+msgstr "Importazione Salvataggi"
+
+#: saves.c:1148
+msgid "Copy save game to a VMU"
+msgstr "Copia il salvataggio su una VMU"
+
+#: saves.c:1210
+msgid "Copy selected Saves to another VMU"
+msgstr "Copia i salvataggi selezionati su un'altra VMU"
+
+#: saves.c:1211
+msgid "Copy all Saves to another VMU"
+msgstr "Copia tutti i salvataggi su un'altra VMU"
+
+#: saves.c:1212
+msgid "Export selected Saves to .DCI"
+msgstr "Esporta i salvataggi selezionati in .DCI"
+
+#: saves.c:1213
+msgid "Export all Saves to .DCI"
+msgstr "Esporta tutti i salvataggi in .DCI"
+
+#: saves.c:1217
+msgid "Memory Card Backup"
+msgstr "Backup Memory Card"
+
+#: saves.c:1219
+msgid "Dump VMU image to"
+msgstr "Copia l'immagine della VMU in"
+
+#: saves.c:1219
+msgid "Dump full VMU image (.BIN)"
+msgstr "Copia l'immagine completa della VMU (.BIN)"
+
+#: saves.c:1227
+msgid "Import Saves to VMU"
+msgstr "Importa salvataggi sulla VMU"
+
+#: saves.c:1227
+msgid "Import Saves to VMU image"
+msgstr "Importa salvataggi nell'immagine VMU"
+
+#: saves.c:1249
+msgid "%s (%d blocks)"
+msgstr "%s (%d blocchi)"
+
+#: settings.c:25
+msgid "Disabled"
+msgstr "Disabilitato"
+
+#: settings.c:25
+msgid "by Name"
+msgstr "per Nome"
+
+#: settings.c:25
+msgid "by Title ID"
+msgstr "per ID Titolo"
+
+#: settings.c:28
+msgid "Background Music"
+msgstr "Musica di Sottofondo"
+
+#: settings.c:34
+msgid "Menu Animations"
+msgstr "Animazioni Menu"
+
+#: settings.c:40
+msgid "Sort Saves"
+msgstr "Ordina Salvataggi"
+
+#: settings.c:46
+msgid "External Saves Source"
+msgstr "Sorgente Salvataggi Esterni"
+
+#: settings.c:66
+msgid "Clear Local Cache"
+msgstr "Svuota Cache Locale"
+
+#: settings.c:72
+msgid "Enable Debug Log"
+msgstr "Abilita Log Debug"
+
+#: settings.c:110
+msgid "Local cache folder cleaned:"
+msgstr "Cartella cache locale svuotata:"
+
+#: settings.c:119
+msgid "Error! Can't download data update pack!"
+msgstr "Errore! Impossibile scaricare il pacchetto di aggiornamento dati!"
+
+#: settings.c:124
+msgid "Successfully updated %d data files!"
+msgstr "Aggiornati con successo %d file di dati!"
+
+#: settings.c:126
+msgid "Error! Can't extract data update pack!"
+msgstr "Errore! Impossibile estrarre il pacchetto di aggiornamento dati!"
+
+#: settings.c:197
+msgid "New version available! Download update?"
+msgstr "Nuova versione disponibile! Scaricare l'aggiornamento?"
+
+#: settings.c:200
+msgid "Update downloaded to ms0:/APOLLO/apollo-psp.zip"
+msgstr "Aggiornamento scaricato in ms0:/APOLLO/apollo-psp.zip"
+
+#: settings.c:202
+msgid "Download error!"
+msgstr "Errore di download!"
+
+#: settings.c:218
+msgid "Debug Logging Enabled!"
+msgstr "Log Debug Abilitato!"
+
+#: settings.c:284
+msgid "No VMU found!"
+msgstr "Nessuna VMU trovata!"
+
+#: settings.c:284
+msgid "Settings couldn't be saved"
+msgstr "Impossibile salvare le impostazioni"
+
+#: settings.c:303
+msgid "Error! Settings couldn't be saved to:"
+msgstr "Errore! Impossibile salvare le impostazioni su:"
+
+#: vmu_dev.c:65
+msgid "VMU %c%d - %d blocks free"
+msgstr "VMU %c%d - %d blocchi liberi"
+
+#: zip_util.c:153
+msgid "Extracting files..."
+msgstr "Estrazione file in corso..."

@@ -1,0 +1,721 @@
+# Apollo Save Tool (Dreamcast) - German translation
+msgid ""
+msgstr ""
+"Project-Id-Version: Apollo Save Tool (Dreamcast)\n"
+"Language-Team: github.com/bucanero\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-Basepath: ../source\n"
+"X-Poedit-KeywordsList: _;_i18n\n"
+"X-Poedit-SearchPath-0: .\n"
+
+#: dialog.c:62
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: dialog.c:62 dialog.c:74
+msgid "OK"
+msgstr "OK"
+
+#: dialog.c:75
+msgid "No"
+msgstr "Nein"
+
+#: dialog.c:75
+msgid "Yes"
+msgstr "Ja"
+
+#: exec_cmd.c:59
+msgid "Error! No SD card found"
+msgstr "Fehler! Keine SD-Karte gefunden"
+
+#: exec_cmd.c:59
+msgid "Use a FAT formatted card in an SD card adapter"
+msgstr "Verwende eine FAT-formatierte Karte in einem SD-Kartenadapter"
+
+#: exec_cmd.c:61
+msgid "Error! Export folder is not available:"
+msgstr "Fehler! Export-Ordner ist nicht verfügbar:"
+
+#: exec_cmd.c:82
+msgid "Save game successfully extracted to:"
+msgstr "Spielstand erfolgreich extrahiert nach:"
+
+#: exec_cmd.c:84 exec_cmd.c:898
+msgid "Error extracting save game:"
+msgstr "Fehler beim Extrahieren des Spielstands:"
+
+#: exec_cmd.c:92 exec_cmd.c:889
+msgid "Error downloading save game from:"
+msgstr "Fehler beim Herunterladen des Spielstands von:"
+
+#: exec_cmd.c:97
+msgid "Save game successfully downloaded to:"
+msgstr "Spielstand erfolgreich heruntergeladen nach:"
+
+#: exec_cmd.c:99
+msgid "Error extracting save game!"
+msgstr "Fehler beim Extrahieren des Spielstands!"
+
+#: exec_cmd.c:137
+msgid "All files extracted to:"
+msgstr "Alle Dateien extrahiert nach:"
+
+#: exec_cmd.c:139
+msgid "Error: %s couldn't be extracted"
+msgstr "Fehler: %s konnte nicht extrahiert werden"
+
+#: exec_cmd.c:377
+msgid "Applying changes..."
+msgstr "Änderungen werden angewendet..."
+
+#: exec_cmd.c:486 saves.c:709
+msgid "Add copy protection (lock save)"
+msgstr "Kopierschutz hinzufügen (Spielstand sperren)"
+
+#: exec_cmd.c:486 saves.c:707
+msgid "Remove copy protection (unlock save)"
+msgstr "Kopierschutz entfernen (Spielstand entsperren)"
+
+#: exec_cmd.c:498
+msgid "Error! Couldn't change the save's copy protection"
+msgstr "Fehler! Kopierschutz des Spielstands konnte nicht geändert werden"
+
+#: exec_cmd.c:504
+msgid "Error! Cheat codes couldn't be applied"
+msgstr "Fehler! Cheat-Codes konnten nicht angewendet werden"
+
+#: exec_cmd.c:506
+msgid "Save %s successfully modified!"
+msgstr "Spielstand %s erfolgreich geändert!"
+
+#: exec_cmd.c:550 exec_cmd.c:732 exec_cmd.c:1133
+msgid "Overwrite it?"
+msgstr "Überschreiben?"
+
+#: exec_cmd.c:550 exec_cmd.c:732 exec_cmd.c:1133
+msgid "The save already exists:"
+msgstr "Der Spielstand existiert bereits:"
+
+#: exec_cmd.c:553
+msgid "Copying save game..."
+msgstr "Kopiere Spielstand..."
+
+#: exec_cmd.c:558
+msgid "Save successfully copied to:"
+msgstr "Spielstand erfolgreich kopiert nach:"
+
+#: exec_cmd.c:560 exec_cmd.c:742 settings.c:303
+msgid "(not enough free blocks?)"
+msgstr "(nicht genug freie Blöcke?)"
+
+#: exec_cmd.c:560
+msgid "Error! Couldn't copy save to:"
+msgstr "Fehler! Spielstand konnte nicht kopiert werden nach:"
+
+#: exec_cmd.c:648
+msgid "Exporting save game..."
+msgstr "Exportiere Spielstand..."
+
+#: exec_cmd.c:654
+msgid "Save successfully exported to:"
+msgstr "Spielstand erfolgreich exportiert nach:"
+
+#: exec_cmd.c:656
+msgid "Error! Couldn't export save:"
+msgstr "Fehler! Spielstand konnte nicht exportiert werden:"
+
+#: exec_cmd.c:672
+msgid "Exporting saves..."
+msgstr "Exportiere Spielstände..."
+
+#: exec_cmd.c:686
+msgid "Saves exported to:"
+msgstr "Spielstände exportiert nach:"
+
+#: exec_cmd.c:724
+msgid "Error! Not a valid Dreamcast save:"
+msgstr "Fehler! Kein gültiger Dreamcast-Spielstand:"
+
+#: exec_cmd.c:735
+msgid "Importing save game..."
+msgstr "Importiere Spielstand..."
+
+#: exec_cmd.c:740
+msgid "Save successfully imported to:"
+msgstr "Spielstand erfolgreich importiert nach:"
+
+#: exec_cmd.c:742
+msgid "Error! Couldn't import save to:"
+msgstr "Fehler! Spielstand konnte nicht importiert werden nach:"
+
+#: exec_cmd.c:757
+msgid "Copying saves..."
+msgstr "Kopiere Spielstände..."
+
+#: exec_cmd.c:783 exec_cmd.c:785
+msgid "Saves copied to:"
+msgstr "Spielstände kopiert nach:"
+
+#: exec_cmd.c:783
+msgid "skipped: already on the target VMU"
+msgstr "übersprungen: bereits auf der Ziel-VMU"
+
+#: exec_cmd.c:790
+msgid "Reading VMU blocks..."
+msgstr "Lese VMU-Blöcke..."
+
+#: exec_cmd.c:811
+msgid "Error! Not enough memory to dump the VMU"
+msgstr "Fehler! Nicht genug Speicher, um die VMU auszulesen"
+
+#: exec_cmd.c:815
+msgid "Dumping VMU image..."
+msgstr "Lese VMU-Abbild aus..."
+
+#: exec_cmd.c:821
+msgid "(was it removed?)"
+msgstr "(wurde sie entfernt?)"
+
+#: exec_cmd.c:821
+msgid "Error! Couldn't read VMU"
+msgstr "Fehler! VMU konnte nicht gelesen werden"
+
+#: exec_cmd.c:834
+msgid "Saving VMU image..."
+msgstr "Speichere VMU-Abbild..."
+
+#: exec_cmd.c:840
+msgid "Error! Couldn't write the VMU image:"
+msgstr "Fehler! VMU-Abbild konnte nicht geschrieben werden:"
+
+#: exec_cmd.c:842
+msgid "VMU image saved, but the card doesn't look formatted:"
+msgstr "VMU-Abbild gespeichert, aber die Karte scheint nicht formatiert zu sein:"
+
+#: exec_cmd.c:844
+msgid "VMU image successfully saved to:"
+msgstr "VMU-Abbild erfolgreich gespeichert nach:"
+
+#: exec_cmd.c:918
+msgid "Error! No .VMI or .DCI save found in:"
+msgstr "Fehler! Kein .VMI- oder .DCI-Spielstand gefunden in:"
+
+#: exec_cmd.c:928
+msgid "Delete this save?"
+msgstr "Diesen Spielstand löschen?"
+
+#: exec_cmd.c:928
+msgid "This can't be undone!"
+msgstr "Dies kann nicht rückgängig gemacht werden!"
+
+#: exec_cmd.c:933 exec_cmd.c:1020
+msgid "Deleting save..."
+msgstr "Lösche Spielstand..."
+
+#: exec_cmd.c:939
+msgid "Save successfully deleted:"
+msgstr "Spielstand erfolgreich gelöscht:"
+
+#: exec_cmd.c:941 exec_cmd.c:1025
+msgid "Error! Couldn't delete save:"
+msgstr "Fehler! Spielstand konnte nicht gelöscht werden:"
+
+#: exec_cmd.c:1041 exec_cmd.c:1116
+msgid "Error! Couldn't read save:"
+msgstr "Fehler! Spielstand konnte nicht gelesen werden:"
+
+#: exec_cmd.c:1049
+msgid "Error! VMU mini-games can't be compressed:"
+msgstr "Fehler! VMU-Minispiele können nicht komprimiert werden:"
+
+#: exec_cmd.c:1053
+msgid "Compressing save..."
+msgstr "Komprimiere Spielstand..."
+
+#: exec_cmd.c:1060
+msgid "Error! Couldn't compress save:"
+msgstr "Fehler! Spielstand konnte nicht komprimiert werden:"
+
+#: exec_cmd.c:1064
+msgid "VMZip doesn't make this save smaller:"
+msgstr "VMZip macht diesen Spielstand nicht kleiner:"
+
+#: exec_cmd.c:1065
+msgid "Compress it anyway?"
+msgstr "Trotzdem komprimieren?"
+
+#: exec_cmd.c:1065 exec_cmd.c:1100
+msgid "blocks"
+msgstr "Blöcke"
+
+#: exec_cmd.c:1074
+msgid "Error! Couldn't find a free VMZip file name on %s"
+msgstr "Fehler! Kein freier VMZip-Dateiname auf %s gefunden"
+
+#: exec_cmd.c:1081 exec_cmd.c:1142
+msgid "Error! Not enough free blocks on:"
+msgstr "Fehler! Nicht genug freie Blöcke auf:"
+
+#: exec_cmd.c:1081 exec_cmd.c:1142
+msgid "free"
+msgstr "frei"
+
+#: exec_cmd.c:1081 exec_cmd.c:1142
+msgid "needed"
+msgstr "benötigt"
+
+#: exec_cmd.c:1086
+msgid "Writing VMZip save..."
+msgstr "Schreibe VMZip-Spielstand..."
+
+#: exec_cmd.c:1093 exec_cmd.c:1154
+msgid "Error! Couldn't write %s to %s"
+msgstr "Fehler! %s konnte nicht auf %s geschrieben werden"
+
+#: exec_cmd.c:1099
+msgid "Save compressed to:"
+msgstr "Spielstand komprimiert nach:"
+
+#: exec_cmd.c:1102
+msgid "Delete the original save?"
+msgstr "Den ursprünglichen Spielstand löschen?"
+
+#: exec_cmd.c:1121
+msgid "Decompressing save..."
+msgstr "Entpacke Spielstand..."
+
+#: exec_cmd.c:1128
+msgid "Error! Not a valid VMZip save:"
+msgstr "Fehler! Kein gültiger VMZip-Spielstand:"
+
+#: exec_cmd.c:1147
+msgid "Writing save..."
+msgstr "Schreibe Spielstand..."
+
+#: exec_cmd.c:1159
+msgid "Save decompressed to:"
+msgstr "Spielstand entpackt nach:"
+
+#: exec_cmd.c:1161
+msgid "Delete the VMZip save?"
+msgstr "Den VMZip-Spielstand löschen?"
+
+#: exec_cmd.c:1169
+msgid "Download URL"
+msgstr "Download-URL"
+
+#: exec_cmd.c:1175
+msgid "File successfully downloaded to:"
+msgstr "Datei erfolgreich heruntergeladen nach:"
+
+#: exec_cmd.c:1177
+msgid "Error! File couldn't be downloaded"
+msgstr "Fehler! Datei konnte nicht heruntergeladen werden"
+
+#: http.c:34
+msgid "Connecting to the network..."
+msgstr "Verbinde mit dem Netzwerk..."
+
+#: http.c:120
+msgid "Downloading..."
+msgstr "Herunterladen..."
+
+#: main.c:157 main.c:162 main.c:167 main.c:173 main.c:177
+msgid "Back"
+msgstr "Zurück"
+
+#: main.c:157 menu_cheats.c:255
+msgid "Details"
+msgstr "Details"
+
+#: main.c:157 main.c:162
+msgid "Refresh"
+msgstr "Aktualisieren"
+
+#: main.c:157 main.c:162 main.c:167 main.c:177
+msgid "Select"
+msgstr "Auswählen"
+
+#: main.c:177
+msgid "View Code"
+msgstr "Code anzeigen"
+
+#: main.c:181
+msgid "Exit"
+msgstr "Beenden"
+
+#: main.c:181
+msgid "Value Down"
+msgstr "Wert verringern"
+
+#: main.c:181
+msgid "Value Up"
+msgstr "Wert erhöhen"
+
+#: main.c:358
+msgid "No VMU detected!"
+msgstr "Keine VMU erkannt!"
+
+#: main.c:358
+msgid "Please insert a Visual Memory Unit in a controller slot"
+msgstr "Bitte stecke eine Visual Memory Unit in einen Controller"
+
+#: main.c:372
+msgid "Select VMU"
+msgstr "VMU auswählen"
+
+#: main.c:516
+msgid "VMU Saves"
+msgstr "VMU-Spielstände"
+
+#: main.c:517
+msgid "External Saves"
+msgstr "Externe Spielstände"
+
+#: main.c:518
+msgid "VMU Image"
+msgstr "VMU-Abbild"
+
+#: main.c:519
+msgid "Saves Database"
+msgstr "Spielstand-Datenbank"
+
+#: main.c:520
+msgid "User Tools"
+msgstr "Benutzer-Tools"
+
+#: menu_about.c:59 menu_about.c:79
+msgid "About"
+msgstr "Über"
+
+#: menu_cheats.c:111 menu_cheats.c:144 menu_cheats.c:164
+msgid "Options"
+msgstr "Optionen"
+
+#: menu_cheats.c:209
+msgid "Target File:"
+msgstr "Zieldatei:"
+
+#: menu_cheats.c:516
+msgid "Saves"
+msgstr "Spielstände"
+
+#: menu_cheats.c:521
+msgid "Games"
+msgstr "Spiele"
+
+#: menu_cheats.c:525
+msgid "Tools"
+msgstr "Werkzeuge"
+
+#: menu_hex.c:51 menu_hex.c:71
+msgid "Hex Editor"
+msgstr "Hex-Editor"
+
+#: menu_main.c:70
+msgid "Loading saves..."
+msgstr "Lade Spielstände..."
+
+#: menu_main.c:82
+msgid "No save-games found"
+msgstr "Keine Spielstände gefunden"
+
+#: menu_main.c:146
+msgid "Error getting details (%s)"
+msgstr "Fehler beim Lesen der Details (%s)"
+
+#: menu_main.c:319 menu_main.c:671
+msgid "Patch view"
+msgstr "Patch-Ansicht"
+
+#: menu_main.c:432
+msgid "No data found in folder:"
+msgstr "Keine Daten im Ordner gefunden:"
+
+#: menu_main.c:485
+msgid "Exit Apollo?"
+msgstr "Apollo beenden?"
+
+#: menu_main.c:613
+msgid "Save changes to %s?"
+msgstr "Änderungen in %s speichern?"
+
+#: menu_main.c:617
+msgid "Error! Couldn't save changes to:"
+msgstr "Fehler! Änderungen konnten nicht gespeichert werden in:"
+
+#: menu_main.c:707
+msgid "Unable to load"
+msgstr "Laden nicht möglich"
+
+#: menu_options.c:65 menu_options.c:85
+msgid "Settings"
+msgstr "Einstellungen"
+
+#: saves.c:289
+msgid "this VMU"
+msgstr "diese VMU"
+
+#: saves.c:289
+msgid "this VMU image"
+msgstr "dieses VMU-Abbild"
+
+#: saves.c:373
+msgid "Import to"
+msgstr "Importieren nach"
+
+#: saves.c:378 saves.c:382
+msgid "Extract .VMI/.VMS to"
+msgstr ".VMI/.VMS extrahieren nach"
+
+#: saves.c:613
+msgid "Cheats"
+msgstr "Cheats"
+
+#: saves.c:616
+msgid "View Raw Patch File"
+msgstr "Rohe Patch-Datei anzeigen"
+
+#: saves.c:641
+msgid "Import %s"
+msgstr "%s importieren"
+
+#: saves.c:678 saves.c:700 saves.c:1142
+msgid "View Save Details"
+msgstr "Spielstand-Details anzeigen"
+
+#: saves.c:681
+msgid "VMZip"
+msgstr "VMZip"
+
+#: saves.c:683
+msgid "Decompress VMZip save"
+msgstr "VMZip-Spielstand entpacken"
+
+#: saves.c:683
+msgid "Decompress to"
+msgstr "Entpacken nach"
+
+#: saves.c:685 saves.c:712
+msgid "Save Game Backup"
+msgstr "Spielstand-Backup"
+
+#: saves.c:687 saves.c:715
+msgid "Copy save game to another VMU"
+msgstr "Spielstand auf eine andere VMU kopieren"
+
+#: saves.c:687 saves.c:715 saves.c:1108 saves.c:1109 saves.c:1148 saves.c:1210
+#: saves.c:1211
+msgid "Copy to"
+msgstr "Kopieren nach"
+
+#: saves.c:688 saves.c:716 saves.c:1212 saves.c:1213
+msgid "Export .DCI to"
+msgstr ".DCI exportieren nach"
+
+#: saves.c:688 saves.c:716
+msgid "Export save game to .DCI format"
+msgstr "Spielstand im .DCI-Format exportieren"
+
+#: saves.c:689 saves.c:717
+msgid "Export .VMI/.VMS to"
+msgstr ".VMI/.VMS exportieren nach"
+
+#: saves.c:689 saves.c:717
+msgid "Export save game to .VMI/.VMS format"
+msgstr "Spielstand im .VMI/.VMS-Format exportieren"
+
+#: saves.c:691 saves.c:733
+msgid "Delete Save Game"
+msgstr "Spielstand löschen"
+
+#: saves.c:697
+msgid "Apply Changes"
+msgstr "Änderungen übernehmen"
+
+#: saves.c:704
+msgid "Save Permissions"
+msgstr "Spielstand-Berechtigungen"
+
+#: saves.c:719
+msgid "Save Game Tools"
+msgstr "Spielstand-Werkzeuge"
+
+#: saves.c:724
+msgid "Compress save with VMZip"
+msgstr "Spielstand mit VMZip komprimieren"
+
+#: saves.c:724
+msgid "Compress to"
+msgstr "Komprimieren nach"
+
+#: saves.c:727
+msgid "Hex Edit save game file"
+msgstr "Spielstand-Datei im Hex-Editor bearbeiten"
+
+#: saves.c:832
+msgid "Extract Archives (Zip, 7z)"
+msgstr "Archive extrahieren (Zip, 7z)"
+
+#: saves.c:859
+msgid "Local Web Server (full system access)"
+msgstr "Lokaler Webserver (voller Systemzugriff)"
+
+#: saves.c:882
+msgid "Extract %s%s"
+msgstr "%s%s extrahieren"
+
+#: saves.c:1080 saves.c:1205
+msgid "VMU image"
+msgstr "VMU-Abbild"
+
+#: saves.c:1100 saves.c:1198
+msgid "Bulk Save Management"
+msgstr "Massenverwaltung von Spielständen"
+
+#: saves.c:1108 saves.c:1210
+msgid "Copy selected Saves to a VMU"
+msgstr "Ausgewählte Spielstände auf eine VMU kopieren"
+
+#: saves.c:1109 saves.c:1211
+msgid "Copy all Saves to a VMU"
+msgstr "Alle Spielstände auf eine VMU kopieren"
+
+#: saves.c:1145
+msgid "Save Game Import"
+msgstr "Spielstand-Import"
+
+#: saves.c:1148
+msgid "Copy save game to a VMU"
+msgstr "Spielstand auf eine VMU kopieren"
+
+#: saves.c:1210
+msgid "Copy selected Saves to another VMU"
+msgstr "Ausgewählte Spielstände auf eine andere VMU kopieren"
+
+#: saves.c:1211
+msgid "Copy all Saves to another VMU"
+msgstr "Alle Spielstände auf eine andere VMU kopieren"
+
+#: saves.c:1212
+msgid "Export selected Saves to .DCI"
+msgstr "Ausgewählte Spielstände als .DCI exportieren"
+
+#: saves.c:1213
+msgid "Export all Saves to .DCI"
+msgstr "Alle Spielstände als .DCI exportieren"
+
+#: saves.c:1217
+msgid "Memory Card Backup"
+msgstr "Speicherkarten-Backup"
+
+#: saves.c:1219
+msgid "Dump VMU image to"
+msgstr "VMU-Abbild speichern nach"
+
+#: saves.c:1219
+msgid "Dump full VMU image (.BIN)"
+msgstr "Komplettes VMU-Abbild auslesen (.BIN)"
+
+#: saves.c:1227
+msgid "Import Saves to VMU"
+msgstr "Spielstände auf die VMU importieren"
+
+#: saves.c:1227
+msgid "Import Saves to VMU image"
+msgstr "Spielstände in das VMU-Abbild importieren"
+
+#: saves.c:1249
+msgid "%s (%d blocks)"
+msgstr "%s (%d Blöcke)"
+
+#: settings.c:25
+msgid "Disabled"
+msgstr "Deaktiviert"
+
+#: settings.c:25
+msgid "by Name"
+msgstr "nach Name"
+
+#: settings.c:25
+msgid "by Title ID"
+msgstr "nach Titel-ID"
+
+#: settings.c:28
+msgid "Background Music"
+msgstr "Hintergrundmusik"
+
+#: settings.c:34
+msgid "Menu Animations"
+msgstr "Menüanimationen"
+
+#: settings.c:40
+msgid "Sort Saves"
+msgstr "Spielstände sortieren"
+
+#: settings.c:46
+msgid "External Saves Source"
+msgstr "Quelle externer Spielstände"
+
+#: settings.c:66
+msgid "Clear Local Cache"
+msgstr "Lokalen Cache leeren"
+
+#: settings.c:72
+msgid "Enable Debug Log"
+msgstr "Debug-Protokoll aktivieren"
+
+#: settings.c:110
+msgid "Local cache folder cleaned:"
+msgstr "Lokaler Cache-Ordner geleert:"
+
+#: settings.c:119
+msgid "Error! Can't download data update pack!"
+msgstr "Fehler! Datenupdate-Paket kann nicht heruntergeladen werden!"
+
+#: settings.c:124
+msgid "Successfully updated %d data files!"
+msgstr "%d Datendateien erfolgreich aktualisiert!"
+
+#: settings.c:126
+msgid "Error! Can't extract data update pack!"
+msgstr "Fehler! Datenupdate-Paket kann nicht entpackt werden!"
+
+#: settings.c:197
+msgid "New version available! Download update?"
+msgstr "Neue Version verfügbar! Update herunterladen?"
+
+#: settings.c:200
+msgid "Update downloaded to ms0:/APOLLO/apollo-psp.zip"
+msgstr "Update heruntergeladen nach ms0:/APOLLO/apollo-psp.zip"
+
+#: settings.c:202
+msgid "Download error!"
+msgstr "Download-Fehler!"
+
+#: settings.c:218
+msgid "Debug Logging Enabled!"
+msgstr "Debug-Protokollierung aktiviert!"
+
+#: settings.c:284
+msgid "No VMU found!"
+msgstr "Keine VMU gefunden!"
+
+#: settings.c:284
+msgid "Settings couldn't be saved"
+msgstr "Einstellungen konnten nicht gespeichert werden"
+
+#: settings.c:303
+msgid "Error! Settings couldn't be saved to:"
+msgstr "Fehler! Einstellungen konnten nicht gespeichert werden auf:"
+
+#: vmu_dev.c:65
+msgid "VMU %c%d - %d blocks free"
+msgstr "VMU %c%d - %d Blöcke frei"
+
+#: zip_util.c:153
+msgid "Extracting files..."
+msgstr "Extrahiere Dateien..."
