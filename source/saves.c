@@ -87,12 +87,23 @@ char * readTextFile(const char * path, long* size)
 	return string;
 }
 
-static code_entry_t* _createCmdCode(uint8_t type, const char* name, char code)
+static code_entry_t* _createCmdCode(uint8_t type, const char* icon, const char* name, char code)
 {
 	code_entry_t* entry = (code_entry_t *)calloc(1, sizeof(code_entry_t));
 	entry->type = type;
-	entry->name = strdup(name);
+	asprintf(&entry->name, "%s%s", icon, name);
 	asprintf(&entry->codes, "%c", code);
+
+	return entry;
+}
+
+// "----- * Title * -----" separator line
+static code_entry_t* _createHeaderCode(const char* title)
+{
+	code_entry_t* entry = (code_entry_t *)calloc(1, sizeof(code_entry_t));
+	entry->type = PATCH_NULL;
+	asprintf(&entry->name, "----- " UTF8_CHAR_STAR " %s " UTF8_CHAR_STAR " -----", title);
+	asprintf(&entry->codes, "%c", CMD_CODE_NULL);
 
 	return entry;
 }
@@ -110,11 +121,11 @@ static option_entry_t* _initOptions(int count)
 	return options;
 }
 
-static save_entry_t* _createSaveEntry(uint16_t flag, const char* name)
+static save_entry_t* _createSaveEntry(uint16_t flag, const char* icon, const char* name)
 {
 	save_entry_t* entry = (save_entry_t *)calloc(1, sizeof(save_entry_t));
 	entry->flags = flag;
-	entry->name = strdup(name);
+	asprintf(&entry->name, "%s%s", icon, name);
 
 	return entry;
 }
@@ -275,7 +286,7 @@ static option_entry_t* _createVmzipOptions(const char* name, char cmd, const cha
 	value[0] = cmd;
 	value[1] = STORAGE_VMU;
 	snprintf(value + 2, sizeof(value) - 2, "%s", card);
-	snprintf(label, sizeof(label), "%s %s", name, vmucard_is_device(card) ? "this VMU" : "this VMU image");
+	snprintf(label, sizeof(label), "%s %s", name, vmucard_is_device(card) ? _("this VMU") : _("this VMU image"));
 	list_append(options[0].opts, _newOption(label, value, 2 + strlen(value + 2)));
 
 	for (int i = 0; i < count; i++)
@@ -291,16 +302,16 @@ static option_entry_t* _createVmzipOptions(const char* name, char cmd, const cha
 	return options;
 }
 
-static void _addVmzipCommand(list_t* codes, const char* title, const char* name, char cmd, const char* card)
+static void _addVmzipCommand(list_t* codes, const char* icon, const char* title, const char* name, char cmd, const char* card)
 {
-	code_entry_t* entry = _createCmdCode(PATCH_COMMAND, title, CMD_CODE_NULL);
+	code_entry_t* entry = _createCmdCode(PATCH_COMMAND, icon, title, CMD_CODE_NULL);
 
 	entry->options_count = 1;
 	entry->options = _createVmzipOptions(name, cmd, card);
 	list_append(codes, entry);
 }
 
-static void _addVmuCopyCommand(list_t* codes, const char* title, const char* name, char cmd, const char* exclude)
+static void _addVmuCopyCommand(list_t* codes, const char* icon, const char* title, const char* name, char cmd, const char* exclude)
 {
 	code_entry_t* entry;
 	option_entry_t* options = _createVmuOptions(name, cmd, exclude);
@@ -308,15 +319,15 @@ static void _addVmuCopyCommand(list_t* codes, const char* title, const char* nam
 	if (!options)
 		return;
 
-	entry = _createCmdCode(PATCH_COMMAND, title, CMD_CODE_NULL);
+	entry = _createCmdCode(PATCH_COMMAND, icon, title, CMD_CODE_NULL);
 	entry->options_count = 1;
 	entry->options = options;
 	list_append(codes, entry);
 }
 
-static void _addStorageCommand(list_t* codes, const char* title, const char* name, char cmd, int id)
+static void _addStorageCommand(list_t* codes, const char* icon, const char* title, const char* name, char cmd, int id)
 {
-	code_entry_t* entry = _createCmdCode(PATCH_COMMAND, title, CMD_CODE_NULL);
+	code_entry_t* entry = _createCmdCode(PATCH_COMMAND, icon, title, CMD_CODE_NULL);
 
 	entry->options_count = 1;
 	entry->options = _createStorageOptions(name, cmd);
@@ -359,16 +370,16 @@ static option_entry_t* _createDbSaveOptions(void)
 {
 	char label[128];
 	char value[2] = {CMD_DOWNLOAD_USB, STORAGE_MASS};
-	option_entry_t* options = _createVmuOptions("Import to", CMD_DOWNLOAD_HDD, NULL);
+	option_entry_t* options = _createVmuOptions(_("Import to"), CMD_DOWNLOAD_HDD, NULL);
 
 	if (!options)
 		options = _initOptions(1);
 
-	snprintf(label, sizeof(label), "Extract .VMI/.VMS to %s" DC_SAVES_PATH, USB_PATH);
+	snprintf(label, sizeof(label), "%s %s" DC_SAVES_PATH, _("Extract .VMI/.VMS to"), USB_PATH);
 	list_append(options[0].opts, _newOption(label, value, 2));
 
 	value[1] = STORAGE_HOST;
-	snprintf(label, sizeof(label), "Extract .VMI/.VMS to %s" DC_SAVES_PATH, HOST_PATH);
+	snprintf(label, sizeof(label), "%s %s" DC_SAVES_PATH, _("Extract .VMI/.VMS to"), HOST_PATH);
 	list_append(options[0].opts, _newOption(label, value, 2));
 
 	return options;
@@ -599,10 +610,10 @@ static void _addPatchCodes(save_entry_t * save)
 	if ((buffer = readTextFile(filePath, NULL)) == NULL)
 		return;
 
-	code = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Cheats " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);	
+	code = _createHeaderCode(_("Cheats"));	
 	list_append(save->codes, code);
 
-	code = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " View Raw Patch File", CMD_VIEW_RAW_PATCH);
+	code = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " ", _("View Raw Patch File"), CMD_VIEW_RAW_PATCH);
 	list_append(save->codes, code);
 
 	LOG("Loading BSD codes '%s'...", filePath);
@@ -627,8 +638,8 @@ static void add_vmu_import_saves(list_t* list, const char* path)
 		if (!endsWith(dir->d_name, ".DCI") && !endsWith(dir->d_name, ".VMI"))
 			continue;
 
-		snprintf(dcPath, sizeof(dcPath), CHAR_ICON_COPY " Import %s", dir->d_name);
-		cmd = _createCmdCode(PATCH_COMMAND, dcPath, CMD_IMP_SAVE_MC);
+		snprintf(dcPath, sizeof(dcPath), _("Import %s"), dir->d_name);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_COPY " ", dcPath, CMD_IMP_SAVE_MC);
 		asprintf(&cmd->file, "%s%s%s", path, DC_SAVES_PATH, dir->d_name);
 		list_append(list, cmd);
 
@@ -664,62 +675,62 @@ int ReadVmuCodes(save_entry_t * save)
 	// a VMZip file only holds compressed data: unpack it, copy it, or delete it
 	if (save->flags & SAVE_FLAG_VMZIP)
 	{
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " View Save Details", CMD_VIEW_DETAILS);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " ", _("View Save Details"), CMD_VIEW_DETAILS);
 		list_append(save->codes, cmd);
 
-		cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " VMZip " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+		cmd = _createHeaderCode(_("VMZip"));
 		list_append(save->codes, cmd);
-		_addVmzipCommand(save->codes, CHAR_ICON_ZIP " Decompress VMZip save", "Decompress to", CMD_VMZIP_UNPACK, save->path);
+		_addVmzipCommand(save->codes, CHAR_ICON_ZIP " ", _("Decompress VMZip save"), _("Decompress to"), CMD_VMZIP_UNPACK, save->path);
 
-		cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Backup " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+		cmd = _createHeaderCode(_("Save Game Backup"));
 		list_append(save->codes, cmd);
-		_addVmuCopyCommand(save->codes, CHAR_ICON_COPY " Copy save game to another VMU", "Copy to", CMD_COPY_SAVE_HDD, save->path);
-		_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .DCI format", "Export .DCI to", CMD_COPY_SAVE_USB, FILE_TYPE_DCI);
-		_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .VMI/.VMS format", "Export .VMI/.VMS to", CMD_COPY_SAVE_USB, FILE_TYPE_VMI);
+		_addVmuCopyCommand(save->codes, CHAR_ICON_COPY " ", _("Copy save game to another VMU"), _("Copy to"), CMD_COPY_SAVE_HDD, save->path);
+		_addStorageCommand(save->codes, CHAR_ICON_COPY " ", _("Export save game to .DCI format"), _("Export .DCI to"), CMD_COPY_SAVE_USB, FILE_TYPE_DCI);
+		_addStorageCommand(save->codes, CHAR_ICON_COPY " ", _("Export save game to .VMI/.VMS format"), _("Export .VMI/.VMS to"), CMD_COPY_SAVE_USB, FILE_TYPE_VMI);
 
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_WARN " Delete Save Game", CMD_DELETE_SAVE);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_WARN " ", _("Delete Save Game"), CMD_DELETE_SAVE);
 		list_append(save->codes, cmd);
 
 		return list_count(save->codes);
 	}
 
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " Apply Changes", CMD_RESIGN_SAVE);
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " ", _("Apply Changes"), CMD_RESIGN_SAVE);
 	list_append(save->codes, cmd);
 
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " View Save Details", CMD_VIEW_DETAILS);
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " ", _("View Save Details"), CMD_VIEW_DETAILS);
 	list_append(save->codes, cmd);
 
 	// toggled like a cheat, written by "Apply Changes"
-	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Permissions " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+	cmd = _createHeaderCode(_("Save Permissions"));
 	list_append(save->codes, cmd);
 	if (save->flags & SAVE_FLAG_LOCKED)
-		cmd = _createCmdCode(PATCH_SFO, CHAR_ICON_LOCK " Remove copy protection (unlock save)", SFO_UNLOCK_COPY);
+		cmd = _createCmdCode(PATCH_SFO, CHAR_ICON_LOCK " ", _("Remove copy protection (unlock save)"), SFO_UNLOCK_COPY);
 	else
-		cmd = _createCmdCode(PATCH_SFO, CHAR_ICON_LOCK " Add copy protection (lock save)", SFO_UNLOCK_COPY);
+		cmd = _createCmdCode(PATCH_SFO, CHAR_ICON_LOCK " ", _("Add copy protection (lock save)"), SFO_UNLOCK_COPY);
 	list_append(save->codes, cmd);
 
-	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Backup " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+	cmd = _createHeaderCode(_("Save Game Backup"));
 	list_append(save->codes, cmd);
 
-	_addVmuCopyCommand(save->codes, CHAR_ICON_COPY " Copy save game to another VMU", "Copy to", CMD_COPY_SAVE_HDD, save->path);
-	_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .DCI format", "Export .DCI to", CMD_COPY_SAVE_USB, FILE_TYPE_DCI);
-	_addStorageCommand(save->codes, CHAR_ICON_COPY " Export save game to .VMI/.VMS format", "Export .VMI/.VMS to", CMD_COPY_SAVE_USB, FILE_TYPE_VMI);
+	_addVmuCopyCommand(save->codes, CHAR_ICON_COPY " ", _("Copy save game to another VMU"), _("Copy to"), CMD_COPY_SAVE_HDD, save->path);
+	_addStorageCommand(save->codes, CHAR_ICON_COPY " ", _("Export save game to .DCI format"), _("Export .DCI to"), CMD_COPY_SAVE_USB, FILE_TYPE_DCI);
+	_addStorageCommand(save->codes, CHAR_ICON_COPY " ", _("Export save game to .VMI/.VMS format"), _("Export .VMI/.VMS to"), CMD_COPY_SAVE_USB, FILE_TYPE_VMI);
 
-	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Tools " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+	cmd = _createHeaderCode(_("Save Game Tools"));
 	list_append(save->codes, cmd);
 
 	// VMZip writes saves back as data files: a mini-game would come back broken
 	if (!(save->flags & SAVE_FLAG_VMU_GAME))
-		_addVmzipCommand(save->codes, CHAR_ICON_ZIP " Compress save with VMZip", "Compress to", CMD_VMZIP_PACK, save->path);
+		_addVmzipCommand(save->codes, CHAR_ICON_ZIP " ", _("Compress save with VMZip"), _("Compress to"), CMD_VMZIP_PACK, save->path);
 
 	// a VMU save is a single file: the only option is the save itself
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " Hex Edit save game file", CMD_CODE_NULL);
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_SIGN " ", _("Hex Edit save game file"), CMD_CODE_NULL);
 	cmd->options_count = 1;
 	cmd->options = _initOptions(1);
 	list_append(cmd->options[0].opts, _newOption(save->dir_name, (char[]){CMD_HEX_EDIT_FILE}, 1));
 	list_append(save->codes, cmd);
 
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_WARN " Delete Save Game", CMD_DELETE_SAVE);
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_WARN " ", _("Delete Save Game"), CMD_DELETE_SAVE);
 	list_append(save->codes, cmd);
 
 	_addPatchCodes(save);
@@ -785,8 +796,8 @@ int ReadOnlineSaves(save_entry_t * game)
 		const char* eq = strchr(content, '=');
 		if (eq && eq > content)
 		{
-			snprintf(path, sizeof(path), CHAR_ICON_ZIP " %s", eq + 1);
-			item = _createCmdCode(PATCH_COMMAND, path, CMD_CODE_NULL);
+			snprintf(path, sizeof(path), "%s", eq + 1);
+			item = _createCmdCode(PATCH_COMMAND, CHAR_ICON_ZIP " ", path, CMD_CODE_NULL);
 			asprintf(&item->file, "%.*s", (int)(eq - content), content);
 
 			item->options_count = 1;
@@ -818,12 +829,12 @@ list_t * ReadBackupList(const char* userPath)
 	save_entry_t * item;
 	list_t *list = list_alloc();
 
-	item = _createSaveEntry(SAVE_FLAG_ZIP, CHAR_ICON_ZIP " Extract Archives (Zip, 7z)");
+	item = _createSaveEntry(SAVE_FLAG_ZIP, CHAR_ICON_ZIP " ", _("Extract Archives (Zip, 7z)"));
 	item->path = strdup(menu_options[3].options[apollo_config.storage]);
 	item->type = FILE_TYPE_ZIP;
 	list_append(list, item);
 /*
-	item = _createSaveEntry(0, CHAR_ICON_NET " Network Tools");
+	item = _createSaveEntry(0, CHAR_ICON_NET " ", _("Network Tools"));
 	item->path = strdup(MC0_PATH);
 	item->type = FILE_TYPE_NET;
 	list_append(list, item);
@@ -843,9 +854,9 @@ int ReadBackupCodes(save_entry_t * bup)
 
 	case FILE_TYPE_NET:
 		bup->codes = list_alloc();
-//		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " URL link Downloader (http, https, ftp, ftps)", CMD_URL_DOWNLOAD);
+//		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("URL link Downloader (http, https, ftp, ftps)"), CMD_URL_DOWNLOAD);
 //		list_append(bup->codes, cmd);
-		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " Local Web Server (full system access)", CMD_NET_WEBSERVER);
+		cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Local Web Server (full system access)"), CMD_NET_WEBSERVER);
 		list_append(bup->codes, cmd);
 		return list_count(bup->codes);
 
@@ -868,8 +879,8 @@ int ReadBackupCodes(save_entry_t * bup)
 			if (!endsWith(dir->d_name, ".RAR") && !endsWith(dir->d_name, ".ZIP") && !endsWith(dir->d_name, ".7Z"))
 				continue;
 
-			snprintf(tmp, sizeof(tmp), CHAR_ICON_ZIP " Extract %s%s", bup->path, dir->d_name);
-			cmd = _createCmdCode(PATCH_COMMAND, tmp, CMD_EXTRACT_ARCHIVE);
+			snprintf(tmp, sizeof(tmp), _("Extract %s%s"), bup->path, dir->d_name);
+			cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_ZIP " ", tmp, CMD_EXTRACT_ARCHIVE);
 			asprintf(&cmd->file, "%s%s", bup->path, dir->d_name);
 
 			LOG("[%s] name '%s'", cmd->file, cmd->name +2);
@@ -1029,7 +1040,7 @@ static void read_dc_ext_saves(const char* root, list_t* list)
 			continue;
 		}
 
-		item = _createSaveEntry(SAVE_FLAG_DC | SAVE_FLAG_PACKED, title[0] ? title : e->d_name);
+		item = _createSaveEntry(SAVE_FLAG_DC | SAVE_FLAG_PACKED, "", title[0] ? title : e->d_name);
 		item->type = type;
 		item->path = strdup(path);
 		item->dir_name = strdup(e->d_name);
@@ -1063,10 +1074,10 @@ static void read_dc_vmu_images(const char* root, list_t* list)
 		if (get_file_size(path, &size) != SUCCESS || size != VMUDEV_IMAGE_SIZE)
 			continue;
 
-		item = _createSaveEntry(SAVE_FLAG_DC | SAVE_FLAG_VMC, e->d_name);
+		item = _createSaveEntry(SAVE_FLAG_DC | SAVE_FLAG_VMC, "", e->d_name);
 		item->type = FILE_TYPE_VMC;
 		item->path = strdup(path);
-		item->title_id = strdup(endsWith(e->d_name, ".DCM") ? "DCM" : "VMU image");
+		item->title_id = strdup(endsWith(e->d_name, ".DCM") ? "DCM" : _("VMU image"));
 
 		LOG("[%s] VMU image %s", item->title_id, item->path);
 		list_append(list, item);
@@ -1086,7 +1097,7 @@ list_t * ReadUsbList(const char* userPath)
 	list = list_alloc();
 
 	// Bulk management: import external saves into a VMU
-	item = _createSaveEntry(SAVE_FLAG_DC, CHAR_ICON_COPY " Bulk Save Management");
+	item = _createSaveEntry(SAVE_FLAG_DC, CHAR_ICON_COPY " ", _("Bulk Save Management"));
 	item->type = FILE_TYPE_MENU;
 	item->codes = list_alloc();
 	item->path = strdup(userPath);
@@ -1094,10 +1105,10 @@ list_t * ReadUsbList(const char* userPath)
 	item->dir_name = malloc(sizeof(void**));
 	((void**)item->dir_name)[0] = list;
 
-	_addVmuCopyCommand(item->codes, CHAR_ICON_COPY " Copy selected Saves to a VMU", "Copy to", CMD_COPY_SAVES_HDD, NULL);
-	_addVmuCopyCommand(item->codes, CHAR_ICON_COPY " Copy all Saves to a VMU", "Copy to", CMD_COPY_ALL_SAVES_HDD, NULL);
+	_addVmuCopyCommand(item->codes, CHAR_ICON_COPY " ", _("Copy selected Saves to a VMU"), _("Copy to"), CMD_COPY_SAVES_HDD, NULL);
+	_addVmuCopyCommand(item->codes, CHAR_ICON_COPY " ", _("Copy all Saves to a VMU"), _("Copy to"), CMD_COPY_ALL_SAVES_HDD, NULL);
 
-//	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " Start local Web Server", CMD_SAVE_WEBSERVER);
+//	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_NET " ", _("Start local Web Server"), CMD_SAVE_WEBSERVER);
 //	list_append(item->codes, cmd);
 	if (list_count(item->codes))
 		list_append(list, item);
@@ -1128,13 +1139,13 @@ int ReadExtCodes(save_entry_t * save)
 
 	save->codes = list_alloc();
 
-	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " View Save Details", CMD_VIEW_DETAILS);
+	cmd = _createCmdCode(PATCH_COMMAND, CHAR_ICON_USER " ", _("View Save Details"), CMD_VIEW_DETAILS);
 	list_append(save->codes, cmd);
 
-	cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Save Game Import " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+	cmd = _createHeaderCode(_("Save Game Import"));
 	list_append(save->codes, cmd);
 
-	_addVmuCopyCommand(save->codes, CHAR_ICON_COPY " Copy save game to a VMU", "Copy to", CMD_COPY_SAVE_HDD, NULL);
+	_addVmuCopyCommand(save->codes, CHAR_ICON_COPY " ", _("Copy save game to a VMU"), _("Copy to"), CMD_COPY_SAVE_HDD, NULL);
 
 	LOG("Loaded %ld codes", list_count(save->codes));
 	return list_count(save->codes);
@@ -1184,28 +1195,28 @@ list_t * ReadUserList(const char* userPath)
 	list = list_alloc();
 
 	// Bulk management: copy to another VMU, export to storage
-	item = _createSaveEntry(SAVE_FLAG_DC, CHAR_ICON_COPY " Bulk Save Management");
+	item = _createSaveEntry(SAVE_FLAG_DC, CHAR_ICON_COPY " ", _("Bulk Save Management"));
 	item->type = FILE_TYPE_MENU;
 	item->codes = list_alloc();
 	item->path = strdup(userPath);
 	if (device)
 		asprintf(&item->title_id, "VMU %.2s", userPath + strlen(VMU_PATH));
 	else
-		item->title_id = strdup(vmucard_is_dcm(userPath) ? "DCM" : "VMU image");
+		item->title_id = strdup(vmucard_is_dcm(userPath) ? "DCM" : _("VMU image"));
 	//bulk management hack
 	item->dir_name = malloc(sizeof(void**));
 	((void**)item->dir_name)[0] = list;
 
-	_addVmuCopyCommand(item->codes, device ? CHAR_ICON_COPY " Copy selected Saves to another VMU" : CHAR_ICON_COPY " Copy selected Saves to a VMU", "Copy to", CMD_COPY_SAVES_HDD, userPath);
-	_addVmuCopyCommand(item->codes, device ? CHAR_ICON_COPY " Copy all Saves to another VMU" : CHAR_ICON_COPY " Copy all Saves to a VMU", "Copy to", CMD_COPY_ALL_SAVES_HDD, userPath);
-	_addStorageCommand(item->codes, CHAR_ICON_COPY " Export selected Saves to .DCI", "Export .DCI to", CMD_COPY_SAVES_USB, FILE_TYPE_DCI);
-	_addStorageCommand(item->codes, CHAR_ICON_COPY " Export all Saves to .DCI", "Export .DCI to", CMD_COPY_ALL_SAVES_USB, FILE_TYPE_DCI);
+	_addVmuCopyCommand(item->codes, CHAR_ICON_COPY " ", device ? _("Copy selected Saves to another VMU") : _("Copy selected Saves to a VMU"), _("Copy to"), CMD_COPY_SAVES_HDD, userPath);
+	_addVmuCopyCommand(item->codes, CHAR_ICON_COPY " ", device ? _("Copy all Saves to another VMU") : _("Copy all Saves to a VMU"), _("Copy to"), CMD_COPY_ALL_SAVES_HDD, userPath);
+	_addStorageCommand(item->codes, CHAR_ICON_COPY " ", _("Export selected Saves to .DCI"), _("Export .DCI to"), CMD_COPY_SAVES_USB, FILE_TYPE_DCI);
+	_addStorageCommand(item->codes, CHAR_ICON_COPY " ", _("Export all Saves to .DCI"), _("Export .DCI to"), CMD_COPY_ALL_SAVES_USB, FILE_TYPE_DCI);
 
 	if (device)
 	{
-		cmd = _createCmdCode(PATCH_NULL, "----- " UTF8_CHAR_STAR " Memory Card Backup " UTF8_CHAR_STAR " -----", CMD_CODE_NULL);
+		cmd = _createHeaderCode(_("Memory Card Backup"));
 		list_append(item->codes, cmd);
-		_addStorageCommand(item->codes, CHAR_ICON_COPY " Dump full VMU image (.BIN)", "Dump VMU image to", CMD_EXP_VMU_IMAGE, 0);
+		_addStorageCommand(item->codes, CHAR_ICON_COPY " ", _("Dump full VMU image (.BIN)"), _("Dump VMU image to"), CMD_EXP_VMU_IMAGE, 0);
 	}
 	list_append(list, item);
 
@@ -1213,7 +1224,7 @@ list_t * ReadUserList(const char* userPath)
 	const char* import_src[] = {USB_PATH, HOST_PATH};
 	for (int i = 0; i < 2; i++)
 	{
-		item = _createSaveEntry(SAVE_FLAG_DC, device ? CHAR_ICON_COPY " Import Saves to VMU" : CHAR_ICON_COPY " Import Saves to VMU image");
+		item = _createSaveEntry(SAVE_FLAG_DC, CHAR_ICON_COPY " ", device ? _("Import Saves to VMU") : _("Import Saves to VMU image"));
 		item->type = FILE_TYPE_MENU;
 		item->path = strdup(import_src[i]);
 		item->dir_name = strdup(userPath);
@@ -1235,7 +1246,7 @@ list_t * ReadUserList(const char* userPath)
 		// as the ID: it has no patches, and the name is what's on the card
 		if (vmzip)
 		{
-			snprintf(title, sizeof(title), "%s (%d blocks)", orig_name, orig_blocks);
+			snprintf(title, sizeof(title), _("%s (%d blocks)"), orig_name, orig_blocks);
 			snprintf(patch_id, sizeof(patch_id), "%s", ent.filename);
 		}
 		else
@@ -1246,7 +1257,7 @@ list_t * ReadUserList(const char* userPath)
 			dc_get_patch_id(titleid_db, ent.filename, patch_id, sizeof(patch_id));
 		}
 
-		item = _createSaveEntry(SAVE_FLAG_DC | SAVE_FLAG_MEMCARD | (device ? 0 : SAVE_FLAG_VMC), title);
+		item = _createSaveEntry(SAVE_FLAG_DC | SAVE_FLAG_MEMCARD | (device ? 0 : SAVE_FLAG_VMC), "", title);
 		if (vmzip)
 			item->flags |= SAVE_FLAG_VMZIP;
 		if (ent.filetype == VMU_FILE_GAME)
@@ -1323,7 +1334,7 @@ static void _ReadOnlineListEx(const char* urlPath, uint16_t flag, list_t *list)
 		if ((tmp = strchr(content, '=')) != NULL)
 		{
 			*tmp++ = 0;
-			item = _createSaveEntry(flag | SAVE_FLAG_ONLINE, tmp);
+			item = _createSaveEntry(flag | SAVE_FLAG_ONLINE, "", tmp);
 			item->title_id = strdup(content);
 			asprintf(&item->path, "%s%s/", urlPath, item->title_id);
 

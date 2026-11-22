@@ -56,9 +56,9 @@ static int check_export_dir(const char* path)
 		return 1;
 
 	if (strncmp(path, USB_PATH, strlen(USB_PATH)) == 0 && dir_exists(USB_PATH) != SUCCESS)
-		show_message("Error! No SD card found\n\nUse a FAT formatted card in an SD card adapter");
+		show_message("%s\n\n%s", _("Error! No SD card found"), _("Use a FAT formatted card in an SD card adapter"));
 	else
-		show_message("Error! Export folder is not available:\n%s", path);
+		show_message("%s\n%s", _("Error! Export folder is not available:"), path);
 
 	return 0;
 }
@@ -79,9 +79,9 @@ static void downloadSave(const save_entry_t* entry, const char* file, int dst)
 	{
 		snprintf(zip, sizeof(zip), "%s%s", entry->path, file);
 		if (extract_zip(zip, path))
-			show_message("Save game successfully extracted to:\n%s", path);
+			show_message("%s\n%s", _("Save game successfully extracted to:"), path);
 		else
-			show_message("Error extracting save game:\n%s", zip);
+			show_message("%s\n%s", _("Error extracting save game:"), zip);
 
 		sync_storage(path);
 		return;
@@ -89,14 +89,14 @@ static void downloadSave(const save_entry_t* entry, const char* file, int dst)
 
 	if (!http_download(entry->path, file, APOLLO_LOCAL_CACHE "tmpsave.zip", 1))
 	{
-		show_message("Error downloading save game from:\n%s%s", entry->path, file);
+		show_message("%s\n%s%s", _("Error downloading save game from:"), entry->path, file);
 		return;
 	}
 
 	if (extract_zip(APOLLO_LOCAL_CACHE "tmpsave.zip", path))
-		show_message("Save game successfully downloaded to:\n%s", path);
+		show_message("%s\n%s", _("Save game successfully downloaded to:"), path);
 	else
-		show_message("Error extracting save game!");
+		show_message(_("Error extracting save game!"));
 
 	unlink_secure(APOLLO_LOCAL_CACHE "tmpsave.zip");
 }
@@ -134,9 +134,9 @@ static void extractArchive(const char* file_path)
 	}
 
 	if (ret)
-		show_message("All files extracted to:\n%s", exp_path);
+		show_message("%s\n%s", _("All files extracted to:"), exp_path);
 	else
-		show_message("Error: %s couldn't be extracted", file_path);
+		show_message(_("Error: %s couldn't be extracted"), file_path);
 }
 
 /*
@@ -299,10 +299,10 @@ static void enableWebServer(dWebReqHandler_t handler, void* data, int port)
 
 	if (dbg_webserver_start(port, handler, data))
 	{
-		show_message("Web Server on http://%s:%d\nPress OK to stop the Server.", ip_info.ip, port);
+		show_message("%s http://%s:%d\n%s", _("Web Server on"), ip_info.ip, port, _("Press OK to stop the Server."));
 		dbg_webserver_stop();
 	}
-	else show_message("Error starting Web Server!");
+	else show_message(_("Error starting Web Server!"));
 */
 }
 
@@ -374,7 +374,7 @@ static int apply_cheat_patches(const save_entry_t* entry)
 	list_node_t* node;
 	list_t* vmu_files = list_alloc();
 
-	init_loading_screen("Applying changes...");
+	init_loading_screen(_("Applying changes..."));
 
 	for (node = list_head(entry->codes); (code = list_get(node)); node = list_next(node))
 	{
@@ -483,7 +483,7 @@ static int apply_save_patches(save_entry_t* entry)
 			entry->flags &= ~SAVE_FLAG_LOCKED;
 
 		free(code->name);
-		asprintf(&code->name, "%c %s", CHAR_TAG_LOCKED, protect ? "Remove copy protection (unlock save)" : "Add copy protection (lock save)");
+		asprintf(&code->name, "%c %s", CHAR_TAG_LOCKED, protect ? _("Remove copy protection (unlock save)") : _("Add copy protection (lock save)"));
 	}
 
 	return ret;
@@ -495,15 +495,15 @@ static void resignSave(save_entry_t* entry)
 
     if (!apply_save_patches(entry))
     {
-        show_message("Error! Couldn't change the save's copy protection");
+        show_message(_("Error! Couldn't change the save's copy protection"));
         return;
     }
 
     LOG("Applying cheats to '%s'...", entry->name);
     if (!apply_cheat_patches(entry))
-        show_message("Error! Cheat codes couldn't be applied");
+        show_message(_("Error! Cheat codes couldn't be applied"));
     else
-        show_message("Save %s successfully modified!", entry->title_id);
+        show_message(_("Save %s successfully modified!"), entry->title_id);
 }
 
 /*
@@ -547,17 +547,17 @@ static int _copy_vmu_save(const char* src, const char* name, const char* dst, in
 static void copyVmuSave(const save_entry_t* save, const char* dst)
 {
 	if (vmu_target_has(dst, save->dir_name) &&
-		!show_dialog(DIALOG_TYPE_YESNO, "%s already exists on %s\nOverwrite it?", save->dir_name, dst))
+		!show_dialog(DIALOG_TYPE_YESNO, "%s\n%s%s\n\n%s", _("The save already exists:"), dst, save->dir_name, _("Overwrite it?")))
 		return;
 
-	init_loading_screen("Copying save game...");
+	init_loading_screen(_("Copying save game..."));
 	int ret = _copy_vmu_save(save->path, save->dir_name, dst, 1);
 	stop_loading_screen();
 
 	if (ret > 0)
-		show_message("Save successfully copied to:\n%s%s", dst, save->dir_name);
+		show_message("%s\n%s%s", _("Save successfully copied to:"), dst, save->dir_name);
 	else
-		show_message("Error! Couldn't copy save to %s\n(not enough free blocks?)", dst);
+		show_message("%s\n%s\n%s", _("Error! Couldn't copy save to:"), dst, _("(not enough free blocks?)"));
 }
 
 // VMU names can hold characters a FAT file name can't
@@ -645,15 +645,15 @@ static void exportVmuSave(const save_entry_t* save, int type, int dev)
 	if (!check_export_dir(out_dir))
 		return;
 
-	init_loading_screen("Exporting save game...");
+	init_loading_screen(_("Exporting save game..."));
 	int ret = _export_vmu_save(save->path, save->dir_name, type, out_dir);
 	sync_storage(out_dir);
 	stop_loading_screen();
 
 	if (ret)
-		show_message("Save successfully exported to:\n%s", out_dir);
+		show_message("%s\n%s", _("Save successfully exported to:"), out_dir);
 	else
-		show_message("Error! Couldn't export save:\n%s", save->dir_name);
+		show_message("%s\n%s", _("Error! Couldn't export save:"), save->dir_name);
 }
 
 static void exportAllVmuSaves(const save_entry_t* save, int dev, int all)
@@ -669,7 +669,7 @@ static void exportAllVmuSaves(const save_entry_t* save, int dev, int all)
 	if (!check_export_dir(out_dir))
 		return;
 
-	init_progress_bar("Exporting saves...");
+	init_progress_bar(_("Exporting saves..."));
 
 	for (node = list_head(list); (item = list_get(node)); node = list_next(node))
 	{
@@ -683,7 +683,7 @@ static void exportAllVmuSaves(const save_entry_t* save, int dev, int all)
 	sync_storage(out_dir);
 	end_progress_bar();
 
-	show_message("%d/%d Saves exported to:\n%s", done, done + err_count, out_dir);
+	show_message("%d/%d %s\n%s", done, done + err_count, _("Saves exported to:"), out_dir);
 }
 
 // .DCI / .VMI file -> VMU or VMU image. 1 imported, 0 failed, -1 skipped (already there, not overwriting)
@@ -721,7 +721,7 @@ static int importVmuSave(const char* file, const char* vmu_path)
 
 	if (!dc_save_file_read(file, raw, &data, &len))
 	{
-		show_message("Error! Not a valid Dreamcast save:\n%s", file);
+		show_message("%s\n%s", _("Error! Not a valid Dreamcast save:"), file);
 		return 0;
 	}
 
@@ -729,17 +729,17 @@ static int importVmuSave(const char* file, const char* vmu_path)
 	free(data);
 
 	if (vmu_target_has(vmu_path, ent.filename) &&
-		!show_dialog(DIALOG_TYPE_YESNO, "%s already exists on %s\nOverwrite it?", ent.filename, vmu_path))
+		!show_dialog(DIALOG_TYPE_YESNO, "%s\n%s%s\n\n%s", _("The save already exists:"), vmu_path, ent.filename, _("Overwrite it?")))
 		return 0;
 
-	init_loading_screen("Importing save game...");
+	init_loading_screen(_("Importing save game..."));
 	ret = _import_dc_save(file, vmu_path, 1);
 	stop_loading_screen();
 
 	if (ret > 0)
-		show_message("Save successfully imported to:\n%s%s", vmu_path, ent.filename);
+		show_message("%s\n%s%s", _("Save successfully imported to:"), vmu_path, ent.filename);
 	else
-		show_message("Error! Couldn't import save to %s\n(not enough free blocks?)", vmu_path);
+		show_message("%s\n%s\n%s", _("Error! Couldn't import save to:"), vmu_path, _("(not enough free blocks?)"));
 
 	return (ret > 0);
 }
@@ -754,7 +754,7 @@ static void copyAllSaves(const save_entry_t* save, const char* dst, int all)
 	uint64_t progress = 0;
 	list_t *list = ((void**)save->dir_name)[0];
 
-	init_progress_bar("Copying saves...");
+	init_progress_bar(_("Copying saves..."));
 
 	for (node = list_head(list); (item = list_get(node)); node = list_next(node))
 	{
@@ -780,14 +780,14 @@ static void copyAllSaves(const save_entry_t* save, const char* dst, int all)
 	end_progress_bar();
 
 	if (skipped)
-		show_message("%d/%d Saves copied to %s\n%d skipped: already on the target VMU", done, done + err_count + skipped, dst, skipped);
+		show_message("%d/%d %s\n%s\n%d %s", done, done + err_count + skipped, _("Saves copied to:"), dst, skipped, _("skipped: already on the target VMU"));
 	else
-		show_message("%d/%d Saves copied to %s", done, done + err_count, dst);
+		show_message("%d/%d %s\n%s", done, done + err_count, _("Saves copied to:"), dst);
 }
 
 static void dump_progress(int done, int total)
 {
-	update_progress_bar(done, total, "Reading VMU blocks...");
+	update_progress_bar(done, total, _("Reading VMU blocks..."));
 }
 
 // Raw 128 KB image of the whole VMU, every block below the filesystem: a full backup
@@ -808,17 +808,17 @@ static void dumpVmuImage(const save_entry_t* save, int dev)
 	if ((image = malloc(VMUDEV_IMAGE_SIZE)) == NULL || (card = malloc(sizeof(vmu_card_t))) == NULL)
 	{
 		free(image);
-		show_message("Error! Not enough memory to dump the VMU");
+		show_message(_("Error! Not enough memory to dump the VMU"));
 		return;
 	}
 
-	init_progress_bar("Dumping VMU image...");
+	init_progress_bar(_("Dumping VMU image..."));
 	ok = vmudev_dump(save->path, image, &dump_progress);
 	end_progress_bar();
 
 	if (!ok)
 	{
-		show_message("Error! Couldn't read VMU %c%c\n(was it removed?)", toupper(id[0]), id[1]);
+		show_message("%s %c%c\n%s", _("Error! Couldn't read VMU"), toupper(id[0]), id[1], _("(was it removed?)"));
 		goto end;
 	}
 
@@ -831,17 +831,17 @@ static void dumpVmuImage(const save_entry_t* save, int dev)
 	snprintf(path, sizeof(path), "%sVMU_%c%c_%04d%02d%02d_%02d%02d%02d.BIN", out_dir, toupper(id[0]), id[1],
 		t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 
-	init_loading_screen("Saving VMU image...");
+	init_loading_screen(_("Saving VMU image..."));
 	ok = (write_buffer(path, image, VMUDEV_IMAGE_SIZE) == SUCCESS);
 	sync_storage(path);
 	stop_loading_screen();
 
 	if (!ok)
-		show_message("Error! Couldn't write the VMU image:\n%s", path);
+		show_message("%s\n%s", _("Error! Couldn't write the VMU image:"), path);
 	else if (fmt != VMU_OK)
-		show_message("VMU image saved, but the card doesn't look formatted:\n%s", path);
+		show_message("%s\n%s", _("VMU image saved, but the card doesn't look formatted:"), path);
 	else
-		show_message("VMU image successfully saved to:\n%s", path);
+		show_message("%s\n%s", _("VMU image successfully saved to:"), path);
 
 end:
 	free(card);
@@ -886,7 +886,7 @@ static int importDbSave(const save_entry_t* game, const char* zip_name, const ch
 		snprintf(zip, sizeof(zip), APOLLO_LOCAL_CACHE "tmpsave.zip");
 		if (!http_download(game->path, zip_name, zip, 1))
 		{
-			show_message("Error downloading save game from:\n%s%s", game->path, zip_name);
+			show_message("%s\n%s%s", _("Error downloading save game from:"), game->path, zip_name);
 			return 0;
 		}
 	}
@@ -895,7 +895,7 @@ static int importDbSave(const save_entry_t* game, const char* zip_name, const ch
 
 	if (!extract_zip(zip, SAVEDB_TMP_PATH))
 	{
-		show_message("Error extracting save game:\n%s", zip);
+		show_message("%s\n%s", _("Error extracting save game:"), zip);
 		if (game->path[0] != '/')
 			unlink(zip);
 		return 0;
@@ -915,7 +915,7 @@ static int importDbSave(const save_entry_t* game, const char* zip_name, const ch
 	if (save[0])
 		ret = importVmuSave(save, vmu_path);
 	else
-		show_message("Error! No .VMI or .DCI save found in:\n%s", zip);
+		show_message("%s\n%s", _("Error! No .VMI or .DCI save found in:"), zip);
 
 	clean_savedb_tmp();
 	return ret;
@@ -925,20 +925,20 @@ static int deleteSave(const save_entry_t* save)
 {
 	int ret = 0;
 
-	if (!show_dialog(DIALOG_TYPE_YESNO, "Delete %s\n%s from %s?\n\nThis can't be undone!", save->dir_name, save->name, save->path))
+	if (!show_dialog(DIALOG_TYPE_YESNO, "%s\n%s%s\n%s\n\n%s", _("Delete this save?"), save->path, save->dir_name, save->name, _("This can't be undone!")))
 		return 0;
 
 	if (save->type == FILE_TYPE_VMS)
 	{
-		init_loading_screen("Deleting save...");
+		init_loading_screen(_("Deleting save..."));
 		ret = vmu_save_delete(save);
 		stop_loading_screen();
 	}
 
 	if (ret)
-		show_message("Save successfully deleted:\n%s", save->dir_name);
+		show_message("%s\n%s", _("Save successfully deleted:"), save->dir_name);
 	else
-		show_message("Error! Couldn't delete save:\n%s", save->dir_name);
+		show_message("%s\n%s", _("Error! Couldn't delete save:"), save->dir_name);
 
 	return ret;
 }
@@ -1008,20 +1008,21 @@ static int vmzip_room(const char* vmu_path, const char* name)
 	return free_blocks;
 }
 
-static int vmzip_delete_source(const save_entry_t* save, const char* dst, const char* what)
+// question: "Delete the original save?" or "Delete the VMZip save?"
+static int vmzip_delete_source(const save_entry_t* save, const char* dst, const char* question)
 {
 	int ret;
 
 	if (strcmp(dst, save->path) != 0 ||
-		!show_dialog(DIALOG_TYPE_YESNO, "Delete the %s save %s\nfrom %s?", what, save->dir_name, save->path))
+		!show_dialog(DIALOG_TYPE_YESNO, "%s\n%s%s", question, save->path, save->dir_name))
 		return 0;
 
-	init_loading_screen("Deleting save...");
+	init_loading_screen(_("Deleting save..."));
 	ret = vmu_save_delete(save);
 	stop_loading_screen();
 
 	if (!ret)
-		show_message("Error! Couldn't delete save:\n%s", save->dir_name);
+		show_message("%s\n%s", _("Error! Couldn't delete save:"), save->dir_name);
 
 	return ret;
 }
@@ -1037,7 +1038,7 @@ static int compressVmuSave(const save_entry_t* save, const char* dst)
 
 	if (!vmucard_read(save->path, save->dir_name, raw, &data, &len))
 	{
-		show_message("Error! Couldn't read save:\n%s", save->dir_name);
+		show_message("%s\n%s", _("Error! Couldn't read save:"), save->dir_name);
 		return 0;
 	}
 
@@ -1045,23 +1046,23 @@ static int compressVmuSave(const save_entry_t* save, const char* dst)
 	if (ent.filetype == VMU_FILE_GAME)
 	{
 		free(data);
-		show_message("Error! VMU mini-games can't be compressed:\n%s", save->dir_name);
+		show_message("%s\n%s", _("Error! VMU mini-games can't be compressed:"), save->dir_name);
 		return 0;
 	}
 
-	init_loading_screen("Compressing save...");
+	init_loading_screen(_("Compressing save..."));
 	ret = vmzip_pack(ent.filename, data, len, &zip, &zip_len);
 	stop_loading_screen();
 	free(data);
 
 	if (!ret)
 	{
-		show_message("Error! Couldn't compress save:\n%s", save->dir_name);
+		show_message("%s\n%s", _("Error! Couldn't compress save:"), save->dir_name);
 		return 0;
 	}
 
-	if (zip_len >= len && !show_dialog(DIALOG_TYPE_YESNO, "VMZip doesn't make %s smaller\n(%d blocks, %d compressed)\n\nCompress it anyway?",
-		save->dir_name, (int)(len / VMU_BLOCK_SIZE), (int)(zip_len / VMU_BLOCK_SIZE)))
+	if (zip_len >= len && !show_dialog(DIALOG_TYPE_YESNO, "%s\n%s\n%d -> %d %s\n\n%s", _("VMZip doesn't make this save smaller:"),
+		save->dir_name, (int)(len / VMU_BLOCK_SIZE), (int)(zip_len / VMU_BLOCK_SIZE), _("blocks"), _("Compress it anyway?")))
 	{
 		free(zip);
 		return 0;
@@ -1070,35 +1071,35 @@ static int compressVmuSave(const save_entry_t* save, const char* dst)
 	if (!vmzip_next_name(dst, zip_name, sizeof(zip_name)))
 	{
 		free(zip);
-		show_message("Error! Couldn't find a free VMZip file name on %s", dst);
+		show_message(_("Error! Couldn't find a free VMZip file name on %s"), dst);
 		return 0;
 	}
 
 	if ((room = vmzip_room(dst, NULL)) < (int)(zip_len / VMU_BLOCK_SIZE))
 	{
 		free(zip);
-		show_message("Error! Not enough free blocks on %s\n(%d needed, %d free)", dst, (int)(zip_len / VMU_BLOCK_SIZE), room);
+		show_message("%s\n%s\n%d %s, %d %s", _("Error! Not enough free blocks on:"), dst, (int)(zip_len / VMU_BLOCK_SIZE), _("needed"), room, _("free"));
 		return 0;
 	}
 
 	vmzip_dirent(zip_name, zip_len, &ent.timestamp, raw);
-	init_loading_screen("Writing VMZip save...");
+	init_loading_screen(_("Writing VMZip save..."));
 	ret = vmucard_write(dst, raw, zip, zip_len);
 	stop_loading_screen();
 	free(zip);
 
 	if (!ret)
 	{
-		show_message("Error! Couldn't write %s to %s", zip_name, dst);
+		show_message(_("Error! Couldn't write %s to %s"), zip_name, dst);
 		return 0;
 	}
 
 	LOG("VMZip: %s%s (%d blocks) -> %s%s (%d blocks)", save->path, save->dir_name, (int)(len / VMU_BLOCK_SIZE),
 		dst, zip_name, (int)(zip_len / VMU_BLOCK_SIZE));
-	show_message("Save compressed to:\n%s%s\n\n%d blocks -> %d blocks", dst, zip_name,
-		(int)(len / VMU_BLOCK_SIZE), (int)(zip_len / VMU_BLOCK_SIZE));
+	show_message("%s\n%s%s\n\n%d -> %d %s", _("Save compressed to:"), dst, zip_name,
+		(int)(len / VMU_BLOCK_SIZE), (int)(zip_len / VMU_BLOCK_SIZE), _("blocks"));
 
-	return vmzip_delete_source(save, dst, "original");
+	return vmzip_delete_source(save, dst, _("Delete the original save?"));
 }
 
 static int decompressVmuSave(const save_entry_t* save, const char* dst)
@@ -1112,24 +1113,24 @@ static int decompressVmuSave(const save_entry_t* save, const char* dst)
 
 	if (!vmucard_read(save->path, save->dir_name, raw, &data, &len))
 	{
-		show_message("Error! Couldn't read save:\n%s", save->dir_name);
+		show_message("%s\n%s", _("Error! Couldn't read save:"), save->dir_name);
 		return 0;
 	}
 	vmu_dirent_decode(raw, &ent);
 
-	init_loading_screen("Decompressing save...");
+	init_loading_screen(_("Decompressing save..."));
 	ret = vmzip_unpack(data, len, name, &out, &out_len);
 	stop_loading_screen();
 	free(data);
 
 	if (!ret)
 	{
-		show_message("Error! Not a valid VMZip save:\n%s", save->dir_name);
+		show_message("%s\n%s", _("Error! Not a valid VMZip save:"), save->dir_name);
 		return 0;
 	}
 
 	if (vmu_target_has(dst, name) &&
-		!show_dialog(DIALOG_TYPE_YESNO, "%s already exists on %s\nOverwrite it?", name, dst))
+		!show_dialog(DIALOG_TYPE_YESNO, "%s\n%s%s\n\n%s", _("The save already exists:"), dst, name, _("Overwrite it?")))
 	{
 		free(out);
 		return 0;
@@ -1138,26 +1139,26 @@ static int decompressVmuSave(const save_entry_t* save, const char* dst)
 	if ((room = vmzip_room(dst, name)) < (int)(out_len / VMU_BLOCK_SIZE))
 	{
 		free(out);
-		show_message("Error! Not enough free blocks on %s\n(%d needed, %d free)", dst, (int)(out_len / VMU_BLOCK_SIZE), room);
+		show_message("%s\n%s\n%d %s, %d %s", _("Error! Not enough free blocks on:"), dst, (int)(out_len / VMU_BLOCK_SIZE), _("needed"), room, _("free"));
 		return 0;
 	}
 
 	vmzip_dirent(name, out_len, &ent.timestamp, raw);
-	init_loading_screen("Writing save...");
+	init_loading_screen(_("Writing save..."));
 	ret = vmucard_write(dst, raw, out, out_len);
 	stop_loading_screen();
 	free(out);
 
 	if (!ret)
 	{
-		show_message("Error! Couldn't write %s to %s", name, dst);
+		show_message(_("Error! Couldn't write %s to %s"), name, dst);
 		return 0;
 	}
 
 	LOG("VMZip: %s%s -> %s%s (%d blocks)", save->path, save->dir_name, dst, name, (int)(out_len / VMU_BLOCK_SIZE));
-	show_message("Save decompressed to:\n%s%s", dst, name);
+	show_message("%s\n%s%s", _("Save decompressed to:"), dst, name);
 
-	return vmzip_delete_source(save, dst, "VMZip");
+	return vmzip_delete_source(save, dst, _("Delete the VMZip save?"));
 }
 
 static void downloadLink(const char* path)
@@ -1165,15 +1166,15 @@ static void downloadLink(const char* path)
 	char url[256] = "http://";
 	char out_path[256];
 
-	if (!osk_dialog_get_text("Download URL", url, sizeof(url)))
+	if (!osk_dialog_get_text(_("Download URL"), url, sizeof(url)))
 		return;
 
 	snprintf(out_path, sizeof(out_path), "%s%s", path, strrchr(url, '/')+1);
 
 	if (http_download(url, NULL, out_path, 1))
-		show_message("File successfully downloaded to:\n%s", out_path);
+		show_message("%s\n%s", _("File successfully downloaded to:"), out_path);
 	else
-		show_message("Error! File couldn't be downloaded");
+		show_message(_("Error! File couldn't be downloaded"));
 }
 
 void execCodeCommand(code_entry_t* code, const char* codecmd)

@@ -19,54 +19,57 @@
 
 char *strcasestr(const char *, const char *);
 static const char* ext_src[MAX_USB_DEVICES+1] = {USB_PATH, HOST_PATH, "/cd/", NULL};
-static const char* sort_opt[] = {"Disabled", "by Name", "by Title ID", NULL};
+// _i18n() marks strings for translation where _() can't run (static data): initMenuOptions() translates them
+#define _i18n(str)              (str)
+
+static const char* sort_opt[] = {_i18n("Disabled"), _i18n("by Name"), _i18n("by Title ID"), NULL};
 
 menu_option_t menu_options[] = {
-	{ .name = "\nBackground Music", 
+	{ .name = _i18n("Background Music"), 
 		.options = NULL, 
 		.type = APP_OPTION_BOOL, 
 		.value = &apollo_config.music, 
 		.callback = music_callback 
 	},
-	{ .name = "Menu Animations", 
+	{ .name = _i18n("Menu Animations"), 
 		.options = NULL, 
 		.type = APP_OPTION_BOOL, 
 		.value = &apollo_config.doAni, 
 		.callback = ani_callback 
 	},
-	{ .name = "Sort Saves", 
+	{ .name = _i18n("Sort Saves"), 
 		.options = (char**) sort_opt,
 		.type = APP_OPTION_LIST,
 		.value = &apollo_config.doSort, 
 		.callback = sort_callback 
 	},
-	{ .name = "External Saves Source",
+	{ .name = _i18n("External Saves Source"),
 		.options = (char**) ext_src,
 		.type = APP_OPTION_LIST,
 		.value = &apollo_config.storage,
 		.callback = owner_callback
 	},
 /*
-	{ .name = "Version Update Check", 
+	{ .name = _i18n("Version Update Check"), 
 		.options = NULL, 
 		.type = APP_OPTION_BOOL, 
 		.value = &apollo_config.update, 
 		.callback = update_callback 
 	},
-	{ .name = "Update Application Data", 
+	{ .name = _i18n("Update Application Data"), 
 		.options = NULL, 
 		.type = APP_OPTION_CALL, 
 		.value = NULL, 
 		.callback = upd_appdata_callback 
 	},
 */
-	{ .name = "Clear Local Cache", 
+	{ .name = _i18n("Clear Local Cache"), 
 		.options = NULL, 
 		.type = APP_OPTION_CALL, 
 		.value = NULL, 
 		.callback = clearcache_callback 
 	},
-	{ .name = "Enable Debug Log",
+	{ .name = _i18n("Enable Debug Log"),
 		.options = NULL,
 		.type = APP_OPTION_CALL,
 		.value = NULL,
@@ -104,7 +107,7 @@ void clearcache_callback(int sel)
 	LOG("Cleaning folder '%s'...", APOLLO_LOCAL_CACHE);
 	clean_directory(APOLLO_LOCAL_CACHE);
 
-	show_message("Local cache folder cleaned:\n" APOLLO_LOCAL_CACHE);
+	show_message("%s\n%s", _("Local cache folder cleaned:"), APOLLO_LOCAL_CACHE);
 }
 
 void upd_appdata_callback(int sel)
@@ -113,14 +116,14 @@ void upd_appdata_callback(int sel)
 
 	if (!http_download(ONLINE_PATCH_URL, "apollo-psp-update.zip", APOLLO_LOCAL_CACHE "appdata.zip", 1))
 	{
-		show_message("Error! Can't download data update pack!");
+		show_message(_("Error! Can't download data update pack!"));
 		return;
 	}
 
 	if ((i = extract_zip(APOLLO_LOCAL_CACHE "appdata.zip", APOLLO_DATA_PATH)) > 0)
-		show_message("Successfully updated %d data files!", i);
+		show_message(_("Successfully updated %d data files!"), i);
 	else
-		show_message("Error! Can't extract data update pack!");
+		show_message(_("Error! Can't extract data update pack!"));
 
 	unlink_secure(APOLLO_LOCAL_CACHE "appdata.zip");
 }
@@ -191,12 +194,12 @@ void update_callback(int sel)
 	*end = 0;
 	LOG("download URL is %s", start);
 
-	if (show_dialog(DIALOG_TYPE_YESNO, "New version available! Download update?"))
+	if (show_dialog(DIALOG_TYPE_YESNO, _("New version available! Download update?")))
 	{
 		if (http_download(start, NULL, "ms0:/APOLLO/apollo-psp.zip", 1))
-			show_message("Update downloaded to ms0:/APOLLO/apollo-psp.zip");
+			show_message(_("Update downloaded to ms0:/APOLLO/apollo-psp.zip"));
 		else
-			show_message("Download error!");
+			show_message(_("Download error!"));
 	}
 
 end_update:
@@ -212,7 +215,7 @@ void owner_callback(int sel)
 void log_callback(int sel)
 {
 	dbglogger_init_mode(FILE_LOGGER, USB_PATH "apollo.log", 1);
-	show_message("Debug Logging Enabled!\n\n" USB_PATH "apollo.log");
+	show_message("%s\n\n%s", _("Debug Logging Enabled!"), USB_PATH "apollo.log");
 }
 
 /*
@@ -278,7 +281,7 @@ int save_app_settings(app_config_t* config)
 		if (vmudev_list(paths, names, MAX_VMU_DEVICES) < 1)
 		{
 			LOG("No VMU found, settings not saved");
-			show_message("No VMU found!\nSettings couldn't be saved");
+			show_message("%s\n%s", _("No VMU found!"), _("Settings couldn't be saved"));
 			return 0;
 		}
 		strcpy(settings_vmu, paths[0]);
@@ -297,7 +300,7 @@ int save_app_settings(app_config_t* config)
 	if (!vmudev_write_file(settings_vmu, raw, buf, sizeof(buf)))
 	{
 		LOG("Error saving settings!");
-		show_message("Error! Settings couldn't be saved to:\n%s%s\n(not enough free blocks?)", settings_vmu, SETTINGS_FILE);
+		show_message("%s\n%s%s\n%s", _("Error! Settings couldn't be saved to:"), settings_vmu, SETTINGS_FILE, _("(not enough free blocks?)"));
 		return 0;
 	}
 

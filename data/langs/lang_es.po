@@ -1,5 +1,5 @@
 # Apollo Save Tool (Dreamcast) - Spanish translation
-# Proof of concept: only the save list titles are translatable so far.
+# Proof of concept: a few strings only (see docs/translate.po for all of them).
 msgid ""
 msgstr ""
 "Language: es\n"
@@ -21,3 +21,36 @@ msgstr "Base de datos de partidas"
 
 msgid "User Tools"
 msgstr "Herramientas"
+
+msgid "Select"
+msgstr "Elegir"
+
+msgid "Back"
+msgstr "Volver"
+
+msgid "Details"
+msgstr "Detalles"
+
+msgid "Refresh"
+msgstr "Actualizar"
+
+msgid "OK"
+msgstr "Aceptar"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Yes"
+msgstr "Sí"
+
+msgid "No"
+msgstr "No"
+
+msgid "Settings"
+msgstr "Ajustes"
+
+msgid "About"
+msgstr "Acerca de"
+
+msgid "Exit Apollo?"
+msgstr "¿Salir de Apollo?"

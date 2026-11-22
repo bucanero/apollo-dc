@@ -62,7 +62,7 @@ int vmudev_list(char paths[][VMUDEV_PATH_LEN], char names[][VMUDEV_NAME_LEN], in
 	for (int i = 0; count < max && (dev = maple_enum_type(i, MAPLE_FUNC_MEMCARD)) != NULL; i++)
 	{
 		snprintf(paths[count], VMUDEV_PATH_LEN, VMU_PATH "%c%d/", 'a' + dev->port, dev->unit);
-		snprintf(names[count], VMUDEV_NAME_LEN, "VMU %c%d - %d blocks free",
+		snprintf(names[count], VMUDEV_NAME_LEN, _("VMU %c%d - %d blocks free"),
 			'A' + dev->port, dev->unit, vmufs_free_blocks(dev));
 
 		LOG("Found VMU: %s [%s]", paths[count], names[count]);

@@ -31,7 +31,7 @@ int network_up(void)
 		return (net_state > 0);
 
 	net_state = -1;
-	init_loading_screen("Connecting to the network...");
+	init_loading_screen(_("Connecting to the network..."));
 
 	eth_init();
 	if (net_init(0) < 0 || !net_default_dev)
@@ -117,7 +117,7 @@ int http_download(const char* url, const char* filename, const char* local_dst, 
 
 	// no progress bar inside another loading screen (e.g. "Loading saves...")
 	if (show_progress)
-		show_progress = init_progress_bar("Downloading...");
+		show_progress = init_progress_bar(_("Downloading..."));
 
 	if (show_progress)
 	{

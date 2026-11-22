@@ -150,7 +150,7 @@ int extract_zip(const char* zip_file, const char* dest_path)
 	if (!buffer)
 		return 0;
 
-	init_progress_bar("Extracting files...");
+	init_progress_bar(_("Extracting files..."));
 
 	LOG("Extracting %s to <%s>...", zip_file, dest_path);
 
@@ -236,7 +236,7 @@ int extract_7zip(const char* fpath, const char* dest_path)
 	int ret;
 
 	LOG("Extracting 7-Zip (%s) to <%s>...", fpath, dest_path);
-	init_progress_bar("Extracting files...");
+	init_progress_bar(_("Extracting files..."));
 
 	// Extract 7-Zip archive contents
 	ret = Extract7zFileEx(fpath, dest_path, &callback_7z, 0x10000);
@@ -265,7 +265,7 @@ int extract_rar(const char* rarFilePath, const char* dstPath)
 	}
 
 	LOG("UnRAR Extract %s to '%s'...", rarFilePath, dstPath);
-	init_progress_bar("Extracting files...");
+	init_progress_bar(_("Extracting files..."));
 
 	while (RARReadHeaderEx(hArcData, &rarHeaderData) == ERAR_SUCCESS)
 	{

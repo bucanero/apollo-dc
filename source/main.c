@@ -23,6 +23,7 @@
 #include <fat/fs_fat.h>
 #include <dc/fs_dcload.h>
 #include <dc/flashrom.h>
+#include <kos/net.h>
 #include <arch/arch.h>
 
 //Font
@@ -153,31 +154,31 @@ static const char* get_button_prompts(char* prompt)
 		case MENU_USB_SAVES:
 		case MENU_HDD_SAVES:
 		case MENU_VMC_SAVES:
-			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s    \x11 %s    \x10 %s", "Select", "Back", "Details", "Refresh");
+			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s    \x11 %s    \x10 %s", _("Select"), _("Back"), _("Details"), _("Refresh"));
 			break;
 
 		case MENU_ONLINE_DB:
 		case MENU_USER_BACKUP:
-			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s    \x10 %s", "Select", "Back", "Refresh");
+			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s    \x10 %s", _("Select"), _("Back"), _("Refresh"));
 			break;
 
 		case MENU_SETTINGS:
 		case MENU_CODE_OPTIONS:
-			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s", "Select", "Back");
+			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s", _("Select"), _("Back"));
 			break;
 
 		case MENU_CREDITS:
 		case MENU_PATCH_VIEW:
 		case MENU_SAVE_DETAILS:
-			snprintf(prompt, 0xFF, "\x13 %s", "Back");
+			snprintf(prompt, 0xFF, "\x13 %s", _("Back"));
 			break;
 
 		case MENU_PATCHES:
-			snprintf(prompt, 0xFF, "\x12 %s    \x11 %s    \x13 %s", "Select", "View Code", "Back");
+			snprintf(prompt, 0xFF, "\x12 %s    \x11 %s    \x13 %s", _("Select"), _("View Code"), _("Back"));
 			break;
 
 		case MENU_HEX_EDITOR:
-			snprintf(prompt, 0xFF, "\x12 %s    \x10 %s    \x13 %s", "Value Up", "Value Down", "Exit");
+			snprintf(prompt, 0xFF, "\x12 %s    \x10 %s    \x13 %s", _("Value Up"), _("Value Down"), _("Exit"));
 			break;
 
 		case MENU_MAIN_SCREEN:
@@ -354,7 +355,7 @@ void update_hdd_path(char* path)
 
 	if (count <= 0)
 	{
-		show_message("No VMU detected!\n\nPlease insert a Visual Memory Unit\nin a controller slot");
+		show_message("%s\n\n%s", _("No VMU detected!"), _("Please insert a Visual Memory Unit in a controller slot"));
 		return;
 	}
 
@@ -368,7 +369,7 @@ void update_hdd_path(char* path)
 		vmu_opt[i] = vmu_names[i];
 	vmu_opt[count] = NULL;
 
-	if ((sel = show_multi_dialog(vmu_opt, "Select VMU")) < 0)
+	if ((sel = show_multi_dialog(vmu_opt, _("Select VMU"))) < 0)
 		return;
 
 	strcpy(path, vmu_paths[sel]);
@@ -442,6 +443,36 @@ static void terminate(void)
 //	AHX_Quit();
 }
 
+// KOS' flashrom_get_syscfg() never checks the partition's first block (its search loop
+// stops at user block 1), so it misses a system config that's only there: the case
+// after a flash reset, and in Flycast. Look for the latest valid one ourselves.
+static int read_bios_language(void)
+{
+	flashrom_syscfg_t cfg;
+	uint8_t blk[64];
+	int start, size, lang = -1;
+
+	if (flashrom_get_syscfg(&cfg) == FLASHROM_ERR_NONE)
+		return cfg.language;
+
+	if (flashrom_info(FLASHROM_PT_BLOCK_1, &start, &size) < 0)
+		return -1;
+
+	// block 0 is the partition header, the last one the allocation bitmap
+	for (int i = 1; i < size / 64 - 1; i++)
+	{
+		if (flashrom_read(start + i * 64, blk, sizeof(blk)) < 0)
+			break;
+
+		// blocks are written in order: the last valid one wins
+		if (blk[0] == FLASHROM_B1_SYSCFG && blk[1] == 0 &&
+			(net_crc16ccitt(blk, FLASHROM_OFFSET_CRC, 0xffff) ^ 0xffff) == (blk[FLASHROM_OFFSET_CRC] | blk[FLASHROM_OFFSET_CRC + 1] << 8))
+			lang = blk[7];
+	}
+
+	return lang;
+}
+
 // The language set in the Dreamcast BIOS: Japanese, English, German, French, Spanish or Italian
 static const char* get_user_language(void)
 {
@@ -453,15 +484,15 @@ static const char* get_user_language(void)
 		[FLASHROM_LANG_SPANISH]  = "es",
 		[FLASHROM_LANG_ITALIAN]  = "it",
 	};
-	flashrom_syscfg_t cfg;
+	int lang = read_bios_language();
 
-	if (flashrom_get_syscfg(&cfg) < 0 || cfg.language < 0 || cfg.language > FLASHROM_LANG_ITALIAN)
+	if (lang < FLASHROM_LANG_JAPANESE || lang > FLASHROM_LANG_ITALIAN)
 	{
-		LOG("BIOS language not available, using English");
+		LOG("BIOS language not available (%d), using English", lang);
 		return "en";
 	}
 
-	return langs[cfg.language];
+	return langs[lang];
 }
 
 // Load the translation for the BIOS language from the disc; English (the
@@ -691,11 +722,12 @@ int main(int argc, char *argv[])
 		return (-1);
 	}
 	registerSpecialChars();
+	// before the menus: they translate their labels
+	initLocalization();
 	initMenuOptions();
 
 	// Load application settings
 	load_app_settings(&apollo_config);
-	initLocalization();
 
 	// Setup font
 	SetExtraSpace(-10);
