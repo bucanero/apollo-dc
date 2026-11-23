@@ -99,7 +99,7 @@ The database can be read from:
 - **Online:** downloaded from the apollo-saves repository, when a network adapter (Broadband Adapter or LAN Adapter) gets an IP address.
 - **Disc:** the copy included on the disc image (`/cd/APOLLO/DC/`).
 - **SD card:** copy the `DC/` folder of the [apollo-saves](https://github.com/bucanero/apollo-saves) repository to `APOLLO/DC/` on your SD card, to use a newer copy without burning a new disc.
-- **PC:** `APOLLO/DC/` on the PC, when running from dcload.
+- **PC:** `APOLLO/DC/` on the PC, when running from `dcload`.
 
 When more than one source is available, the app asks which one to use. To switch sources, press ![X button](./data/footer_ico_x.png) to reload the list.
 
