@@ -156,9 +156,17 @@ static void SetMenu(int id)
 				vmc_saves.list = NULL;
 			}
 
+		case MENU_HDD_SAVES: //HHD Saves Menu
+			// back to the main menu: drop the list, so coming back asks for the VMU again
+			if (menu_id == MENU_HDD_SAVES && id == MENU_MAIN_SCREEN && hdd_saves.list)
+			{
+				UnloadGameList(hdd_saves.list);
+				hdd_saves.list = NULL;
+				menu_old_sel[MENU_HDD_SAVES] = 0;
+			}
+
 		case MENU_MAIN_SCREEN: //Main Menu
 		case MENU_USB_SAVES: //USB Saves Menu
-		case MENU_HDD_SAVES: //HHD Saves Menu
 		case MENU_ONLINE_DB: //Cheats Online Menu
 		case MENU_USER_BACKUP: //Backup Menu
 			menu_textures[icon_png_file_index].size = 0;
@@ -232,11 +240,7 @@ static void SetMenu(int id)
 			break;
 
 		case MENU_HDD_SAVES: //HDD saves Menu
-			// coming from the main menu: pick the VMU again (another one may be plugged in now)
-			if (menu_id == MENU_MAIN_SCREEN)
-				menu_old_sel[MENU_HDD_SAVES] = 0;
-
-			if ((menu_id == MENU_MAIN_SCREEN || !hdd_saves.list) && !ReloadUserSaves(&hdd_saves))
+			if (!hdd_saves.list && !ReloadUserSaves(&hdd_saves))
 				return;
 
 			if (apollo_config.doAni)
