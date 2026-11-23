@@ -4,7 +4,7 @@ All notable changes to the `apollo-dc` project will be documented in this file. 
 
 ## [Unreleased]()
 
-## [v1.0.0](https://github.com/bucanero/apollo-dc/releases/tag/v1.0.0) - 2026-11-19
+## [v1.0.0](https://github.com/bucanero/apollo-dc/releases/tag/v1.0.0) - 2026-11-28
 
 First Dreamcast release of Apollo Save Tool, based on [apollo-ps2](https://github.com/bucanero/apollo-ps2).
 
@@ -17,7 +17,7 @@ First Dreamcast release of Apollo Save Tool, based on [apollo-ps2](https://githu
 * Save tools: hex editor, delete, apply cheat codes and save patches (the VMS CRC is kept valid)
   - Save patch engine updated to apollo-lib v3, with MicroPython script support
 * Lock / unlock saves: toggle a save's copy-protection flag, applied with "Apply Changes"
-* VMZip compressed saves, compatible with Bucanero's [VMZip](https://github.com/bucanero/vmzip) (`VMZIPDAT.NNN` files)
+* VMZip compressed saves, compatible with original [VMZip](https://github.com/bucanero/vmzip) (`VMZIPDAT.NNN` files)
   - Compress a save (bzip2) to the same or another VMU, and decompress it back
   - The original save's date and time are kept, and restored on decompression
   - Details show the original file, size, and compression ratio

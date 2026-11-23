@@ -31,7 +31,7 @@
 #define EXPORT_PATH             "APOLLO/EXPORT/"
 
 #define ONLINE_URL              "https://bucanero.github.io/apollo-saves/"
-#define SAVEDB_PATH             "SAVEDB/DC/"        // offline Saves DB on the disc (or /sd/, /pc/)
+#define SAVEDB_PATH             "APOLLO/DC/"        // offline Saves DB on the disc (or /sd/, /pc/)
 #define SAVEDB_TMP_PATH         "/ram/"             // where a DB save is unzipped before importing (no subfolders: the RAM disk has no mkdir)
 #define ONLINE_PATCH_URL        "https://bucanero.github.io/apollo-patches/DC/"
 #define ONLINE_CACHE_TIMEOUT    24*3600     // 1-day local cache

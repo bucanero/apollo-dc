@@ -8,7 +8,7 @@
 #   /1ST_READ.BIN       the app (mkdcdisc converts and scrambles the ELF)
 #   /APOLLO/DATA/       dctitleid.txt + DC *.savepatch, from apollo-patches
 #   /APOLLO/DATA/python/  the Python modules that [python:] codes import, from apollo-patches
-#   /SAVEDB/DC/         offline Saves DB: games.txt, <game>/saves.txt, icon0.png, *.zip,
+#   /APOLLO/DC/         offline Saves DB: games.txt, <game>/saves.txt, icon0.png, *.zip,
 #                       from apollo-saves DC/ (same layout as the online database)
 #
 # Needs mkdcdisc (https://gitlab.com/simulant/mkdcdisc) in PATH, or MKDCDISC set.
@@ -33,12 +33,12 @@ done
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 
-mkdir -p "$STAGE/APOLLO/DATA" "$STAGE/SAVEDB"
+mkdir -p "$STAGE/APOLLO/DATA"
 cp "$PATCHES/dctitleid.txt" "$PATCHES"/DC/*.savepatch "$STAGE/APOLLO/DATA/"
 [ -d "$PATCHES/python" ] && cp -R "$PATCHES/python" "$STAGE/APOLLO/DATA/python"
-cp -R "$SAVES/DC" "$STAGE/SAVEDB/DC"
+cp -R "$SAVES/DC" "$STAGE/APOLLO/DC"
 # web pages for the GitHub site, not needed on the disc
-find "$STAGE/SAVEDB" -name README.md -delete
+find "$STAGE/APOLLO/DC" -name README.md -delete
 
 echo "Disc contents: $(find "$STAGE" -type f | wc -l) files, $(du -sh "$STAGE" | cut -f1)"
 
