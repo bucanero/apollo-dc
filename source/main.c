@@ -149,8 +149,8 @@ static const char* get_button_prompts(char* prompt)
 {
 	switch (menu_id)
 	{
-		case MENU_USB_SAVES:
-		case MENU_HDD_SAVES:
+		case MENU_EXT_SAVES:
+		case MENU_VMU_SAVES:
 		case MENU_VMC_SAVES:
 			snprintf(prompt, 0xFF, "\x12 %s    \x13 %s    \x11 %s    \x10 %s", "Select", "Back", "Details", "Refresh");
 			break;

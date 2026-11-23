@@ -14,8 +14,8 @@ enum menu_screen_ids
 {
 	MENU_MAIN_SCREEN,		/* 0 - Main Menu */
 	MENU_VMC_SAVES,			/* 1 - Trophies */
-	MENU_USB_SAVES,			/* 2 - USB Menu (User List) */
-	MENU_HDD_SAVES,			/* 3 - HDD Menu (User List) */
+	MENU_EXT_SAVES,			/* 2 - USB Menu (User List) */
+	MENU_VMU_SAVES,			/* 3 - HDD Menu (User List) */
 	MENU_ONLINE_DB,			/* 4 - Online Menu (Online List) */
 	MENU_USER_BACKUP,		/* 5 - User Backup */
 	MENU_SETTINGS,			/* 6 - Options Menu */
