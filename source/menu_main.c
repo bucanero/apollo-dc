@@ -114,7 +114,7 @@ static code_entry_t* LoadOnlineSaveDetails(void)
 	centry->name = strdup(selected_entry->title_id);
 	centry->file = strdup(selected_centry->name+2);
 
-	for (int i = 55, len = strlen(centry->file); i < len; i += 55)
+	for (int i = 35, len = strlen(centry->file); i < len; i += 35)
 		for (int j = i; j < len; j++)
 			if (centry->file[j] == ' ')
 			{
@@ -150,17 +150,27 @@ static void SetMenu(int id)
 		case MENU_VMC_SAVES:
 			// back to External Saves (or the main menu): the image's changes are already
 			// written to its file, the list can go
-			if (id == MENU_MAIN_SCREEN || id == MENU_USB_SAVES)
+			if (id == MENU_MAIN_SCREEN || id == MENU_EXT_SAVES)
 			{
 				UnloadGameList(vmc_saves.list);
 				vmc_saves.list = NULL;
 			}
 
 		case MENU_MAIN_SCREEN: //Main Menu
-		case MENU_USB_SAVES: //USB Saves Menu
-		case MENU_HDD_SAVES: //HHD Saves Menu
+		case MENU_EXT_SAVES: //USB Saves Menu
 		case MENU_ONLINE_DB: //Cheats Online Menu
 		case MENU_USER_BACKUP: //Backup Menu
+			menu_textures[icon_png_file_index].size = 0;
+			break;
+
+		case MENU_VMU_SAVES: //HHD Saves Menu
+			// back to the main menu: drop the list, so coming back asks for the VMU again
+			if (id == MENU_MAIN_SCREEN && hdd_saves.list)
+			{
+				UnloadGameList(hdd_saves.list);
+				hdd_saves.list = NULL;
+				menu_old_sel[MENU_VMU_SAVES] = 0;
+			}
 			menu_textures[icon_png_file_index].size = 0;
 			break;
 
@@ -169,10 +179,10 @@ static void SetMenu(int id)
 			// to it: keep the flag until we leave to the save list.
 			// Clear the flag before reloading: reloading the list frees every entry,
 			// selected_entry included.
-			if ((selected_entry->flags & SAVE_FLAG_UPDATED) && (id == MENU_HDD_SAVES || id == MENU_VMC_SAVES))
+			if ((selected_entry->flags & SAVE_FLAG_UPDATED) && (id == MENU_VMU_SAVES || id == MENU_VMC_SAVES))
 			{
 				selected_entry->flags ^= SAVE_FLAG_UPDATED;
-				RefreshUserSaves((id == MENU_HDD_SAVES) ? &hdd_saves : &vmc_saves, id);
+				RefreshUserSaves((id == MENU_VMU_SAVES) ? &hdd_saves : &vmc_saves, id);
 			}
 			break;
 
@@ -223,7 +233,7 @@ static void SetMenu(int id)
 				Draw_UserCheatsMenu_Ani(&vmc_saves);
 			break;
 
-		case MENU_USB_SAVES: //USB saves Menu
+		case MENU_EXT_SAVES: //USB saves Menu
 			if (!usb_saves.list && !ReloadUserSaves(&usb_saves))
 				return;
 			
@@ -231,7 +241,7 @@ static void SetMenu(int id)
 				Draw_UserCheatsMenu_Ani(&usb_saves);
 			break;
 
-		case MENU_HDD_SAVES: //HDD saves Menu
+		case MENU_VMU_SAVES: //HDD saves Menu
 			if (!hdd_saves.list && !ReloadUserSaves(&hdd_saves))
 				return;
 
@@ -268,7 +278,7 @@ static void SetMenu(int id)
 
 		case MENU_PATCHES: //Cheat Selection Menu
 			//if entering from game list, don't keep index, otherwise keep
-			if (menu_id == MENU_USB_SAVES || menu_id == MENU_HDD_SAVES || menu_id == MENU_ONLINE_DB || menu_id == MENU_VMC_SAVES)
+			if (menu_id == MENU_EXT_SAVES || menu_id == MENU_VMU_SAVES || menu_id == MENU_ONLINE_DB || menu_id == MENU_VMC_SAVES)
 				menu_old_sel[MENU_PATCHES] = 0;
 
 			char iconfile[256] = {0};
@@ -400,7 +410,7 @@ static void doSaveMenu(save_list_t * save_list)
 	else if (dcPadGetButtonPressed(CONT_B))
 	{
 		// a VMU image was opened from External Saves: go back there
-		SetMenu(save_list == &vmc_saves ? MENU_USB_SAVES : MENU_MAIN_SCREEN);
+		SetMenu(save_list == &vmc_saves ? MENU_EXT_SAVES : MENU_MAIN_SCREEN);
 		return;
 	}
 	else if (dcPadGetButtonPressed(CONT_A))
@@ -859,11 +869,11 @@ void drawScene(void)
 			doSaveMenu(&vmc_saves);
 			break;
 
-		case MENU_USB_SAVES: //USB Saves Menu
+		case MENU_EXT_SAVES: //USB Saves Menu
 			doSaveMenu(&usb_saves);
 			break;
 
-		case MENU_HDD_SAVES: //HDD Saves Menu
+		case MENU_VMU_SAVES: //HDD Saves Menu
 			doSaveMenu(&hdd_saves);
 			break;
 

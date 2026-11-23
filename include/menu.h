@@ -1,10 +1,6 @@
 #ifndef __ARTEMIS_MENU_H__
 #define __ARTEMIS_MENU_H__
 
-#ifdef __APPLE__
-#undef __APPLE__
-#endif
-
 #include <SDL2/SDL.h>
 
 #include "types.h"
@@ -18,8 +14,8 @@ enum menu_screen_ids
 {
 	MENU_MAIN_SCREEN,		/* 0 - Main Menu */
 	MENU_VMC_SAVES,			/* 1 - Trophies */
-	MENU_USB_SAVES,			/* 2 - USB Menu (User List) */
-	MENU_HDD_SAVES,			/* 3 - HDD Menu (User List) */
+	MENU_EXT_SAVES,			/* 2 - USB Menu (User List) */
+	MENU_VMU_SAVES,			/* 3 - HDD Menu (User List) */
 	MENU_ONLINE_DB,			/* 4 - Online Menu (Online List) */
 	MENU_USER_BACKUP,		/* 5 - User Backup */
 	MENU_SETTINGS,			/* 6 - Options Menu */
@@ -140,7 +136,7 @@ enum texture_index
 #define SCREEN_WIDTH						640
 #define SCREEN_HEIGHT						480
 
-//Screen adjustment (PS2 Res/Assets)
+//Screen adjustment (Dreamcast Res/Assets)
 #define SCREEN_W_ADJ 						640/1920
 #define SCREEN_H_ADJ 						480/1080
 

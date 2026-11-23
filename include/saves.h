@@ -7,42 +7,35 @@
 #define APOLLO_USER_PATH		USB_PATH "PS2/EXPORT/"
 #define APOLLO_DATA_PATH		"/cd/APOLLO/DATA/"      // read-only app data on the disc: dctitleid.txt, *.savepatch
 #define APOLLO_LOCAL_CACHE		"/ram/"                // downloads and the online Saves DB cache (RAM disk)
-#define APOLLO_UPDATE_URL		"https://api.github.com/repos/bucanero/apollo-psp/releases/latest"
+#define APOLLO_UPDATE_URL		"https://api.github.com/repos/bucanero/apollo-dc/releases/latest"
+#define APOLLO_RELEASES_URL		"github.com/bucanero/apollo-dc/releases"
 
 #define MAX_USB_DEVICES         5
 #define MAX_VMU_DEVICES         8           // 4 maple ports x 2 expansion slots
 #define VMU_PATH                "/vmu/"     // KOS fs_vmu mount, e.g. "/vmu/a1/"
 #define DC_TITLEID_FILE         "dctitleid.txt"
-#define MC0_PATH                "mc0:/"
-#define MC1_PATH                "mc1:/"
 #define USB_PATH                "/sd/"      // SD card adapter (FAT)
 #define HOST_PATH               "/pc/"      // PC through dcload-ip / dcload-serial
 #define DC_SAVES_PATH           "DC/SAVEDATA/"
 #define DC_VMU_PATH             "DC/VMU/"   // full VMU images, as apollo-ps3 reads them
-#define USER_PATH_USB           "PS2/SAVEDATA/"
+#define USER_PATH_USB           "DC/SAVEDATA/"
 
 #define PS1_SAVES_PATH_USB      "PS1/SAVEDATA/"
-#define PS2_SAVES_PATH_USB      "PS2/SAVEDATA/"
 #define PS3_SAVES_PATH_USB      "PS3/EXPORT/PSV/"
 
 #define PS1_SAVES_PATH_HDD      APOLLO_PATH "PS1/"
-#define PSP_SAVES_PATH_HDD      USB_PATH USER_PATH_USB
+#define DC_SAVES_PATH_SD        USB_PATH USER_PATH_USB
 
 #define PS1_IMP_PATH_USB        "PS1/SAVEDATA/"
 
 #define EXPORT_PATH             "APOLLO/EXPORT/"
-#define EXPORT_ZRIF_PATH        APOLLO_PATH "zrif/"
-
-#define IMP_PS2VMC_PATH_USB     "PS2/VMC/"
-#define IMP_OPLVMC_PATH_USB     "VMC/"
 
 #define ONLINE_URL              "https://bucanero.github.io/apollo-saves/"
-#define SAVEDB_PATH             "SAVEDB/DC/"        // offline Saves DB on the disc (or /sd/, /pc/)
+#define SAVEDB_PATH             "APOLLO/DC/"        // offline Saves DB on the disc (or /sd/, /pc/)
 #define SAVEDB_TMP_PATH         "/ram/"             // where a DB save is unzipped before importing (no subfolders: the RAM disk has no mkdir)
-#define ONLINE_PATCH_URL        "https://bucanero.github.io/apollo-patches/PS2/"
+#define ONLINE_PATCH_URL        "https://bucanero.github.io/apollo-patches/DC/"
 #define ONLINE_CACHE_TIMEOUT    24*3600     // 1-day local cache
 
-#define OWNER_XML_FILE          "owners.xml"
 
 enum storage_enum
 {
@@ -228,7 +221,6 @@ int ReadOnlineSaves(save_entry_t * game);
 int ReadBackupCodes(save_entry_t * bup);
 
 int network_up(void);
-int find_local_savedb(char* path);
 int http_init(void);
 void http_end(void);
 int http_download(const char* url, const char* filename, const char* local_dst, int show_progress);

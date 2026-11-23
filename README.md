@@ -38,7 +38,8 @@ This homebrew app allows you to manage, back up, patch, and import save-game fil
 
 ## Saves Database
 
-* **Offline Saves DB:** browse the [Apollo saves database](https://github.com/bucanero/apollo-saves) of Dreamcast save-games, stored on the disc, and import them straight to a VMU.
+* **Saves DB:** browse the [Apollo saves database](https://github.com/bucanero/apollo-saves) of Dreamcast save-games, and import them straight to a VMU.
+* **Online or offline:** pick the source at runtime: the online database (with a network adapter), or a copy on the disc, the SD card, or the PC.
 
 # Download
 
@@ -72,7 +73,7 @@ To import and export save files, an SD card adapter (FAT formatted) is supported
 | **VMU saves** | VMUs plugged into the controllers (`/vmu/a1/`, `/vmu/a2/`, ...) |
 | **External saves** | `<sd/pc>:/DC/SAVEDATA/` (`*.dci`, `*.vmi` + `*.vms`) |
 | **VMU images** | full VMU dumps are saved to `<sd/pc>:/DC/VMU/` (`*.bin`) |
-| **Saves DB** | `/cd/SAVEDB/DC/` on the disc; `<sd/pc>:/SAVEDB/DC/` are used when the disc has none |
+| **Saves DB** | online, or `APOLLO/DC/` on the disc (`/cd/`), SD card (`/sd/`), or PC (`/pc/`) |
 | **App data** | save patches and the VMU file name catalog, in `/cd/APOLLO/DATA/` on the disc |
 | **Settings** | `APOLLO__OPTS` file, on the VMU it was loaded from (or the first VMU found) |
 
@@ -87,14 +88,20 @@ Using the application is simple and straight-forward:
  - Press <kbd>START</kbd> to select a save for the bulk operations (`Bulk Save Management`).
  - Press <kbd>LEFT</kbd>/<kbd>RIGHT</kbd> to move 5 items up or down, or the <kbd>L</kbd>/<kbd>R</kbd> triggers to move 25.
 
-When more than one VMU is plugged in, the app asks which one to open.
+When more than one VMU is plugged in, the app asks which one to open. The list is closed when you go back to the main menu, so you can pick another VMU each time you open it.
 
 # Saves Database
 
-The application also provides direct access to the [Apollo saves database](https://github.com/bucanero/apollo-saves) of save-game files for Dreamcast games, stored on the disc image.
+The application also provides direct access to the [Apollo saves database](https://github.com/bucanero/apollo-saves) of save-game files for Dreamcast games.
 These usually offer additional features such as completed games that can save you many hours of playing.
 
-To use a newer copy of the database without burning a new disc, copy the `DC/` folder of the [apollo-saves](https://github.com/bucanero/apollo-saves) repository to `SAVEDB/DC/` on your SD card.
+The database can be read from:
+- **Online:** downloaded from the apollo-saves repository, when a network adapter (Broadband Adapter or LAN Adapter) gets an IP address.
+- **Disc:** the copy included on the disc image (`/cd/APOLLO/DC/`).
+- **SD card:** copy the `DC/` folder of the [apollo-saves](https://github.com/bucanero/apollo-saves) repository to `APOLLO/DC/` on your SD card, to use a newer copy without burning a new disc.
+- **PC:** `APOLLO/DC/` on the PC, when running from dcload.
+
+When more than one source is available, the app asks which one to use. To switch sources, press ![X button](./data/footer_ico_x.png) to reload the list.
 
 The Saves DB project aims to [add more save-games](https://github.com/bucanero/apollo-saves/issues/new/choose) shared by the community.
 
