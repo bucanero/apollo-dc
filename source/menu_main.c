@@ -232,7 +232,11 @@ static void SetMenu(int id)
 			break;
 
 		case MENU_HDD_SAVES: //HDD saves Menu
-			if (!hdd_saves.list && !ReloadUserSaves(&hdd_saves))
+			// coming from the main menu: pick the VMU again (another one may be plugged in now)
+			if (menu_id == MENU_MAIN_SCREEN)
+				menu_old_sel[MENU_HDD_SAVES] = 0;
+
+			if ((menu_id == MENU_MAIN_SCREEN || !hdd_saves.list) && !ReloadUserSaves(&hdd_saves))
 				return;
 
 			if (apollo_config.doAni)
