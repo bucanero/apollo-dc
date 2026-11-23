@@ -221,7 +221,6 @@ int ReadOnlineSaves(save_entry_t * game);
 int ReadBackupCodes(save_entry_t * bup);
 
 int network_up(void);
-int find_local_savedb(char* path);
 int http_init(void);
 void http_end(void);
 int http_download(const char* url, const char* filename, const char* local_dst, int show_progress);

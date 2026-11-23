@@ -381,32 +381,51 @@ void update_vmc_path(char* path)
 	path[0] = 0;
 }
 
-// A local Saves DB: the copy on the disc, else one on the SD card or the PC (dcload)
-int find_local_savedb(char* path)
+// Saves DB sources: the online DB (when the network comes up) and any local copy
+// (disc, SD card, PC through dcload) that has a games.txt; the user picks one
+void update_db_path(char* path)
 {
-	const char* local[] = {"/cd/", USB_PATH, HOST_PATH, NULL};
+	const char* local[] = {"/cd/", USB_PATH, HOST_PATH};
+	const char* local_name[] = {"Disc (/cd/)", "SD card (/sd/)", "PC (/pc/)"};
+	const char* opt[5];
+	const char* opt_path[4];
+	char check[128];
+	int sel, count = 0;
 
-	for (int i = 0; local[i]; i++)
+	for (int i = 0; i < 3; i++)
 	{
-		snprintf(path, 128, "%s" SAVEDB_PATH "games.txt", local[i]);
-		if (file_exists(path) == SUCCESS)
+		snprintf(check, sizeof(check), "%s" SAVEDB_PATH "games.txt", local[i]);
+		if (file_exists(check) == SUCCESS)
 		{
-			snprintf(path, 128, "%s" SAVEDB_PATH, local[i]);
-			LOG("Saves DB found at %s", path);
-			return 1;
+			opt_path[count] = local[i];
+			opt[count++] = local_name[i];
 		}
 	}
 
-	path[0] = 0;
-	return 0;
-}
+	if (network_up())
+	{
+		opt_path[count] = NULL;
+		opt[count++] = "Online (apollo-saves)";
+	}
+	opt[count] = NULL;
 
-// Saves DB: the online one when there's a network connection (the list falls
-// back to a local copy if it can't be downloaded), else the local copy
-void update_db_path(char* path)
-{
-	if (network_up() || !find_local_savedb(path))
+	path[0] = 0;
+	if (!count)
+	{
+		show_message("No Saves DB available!\n\nConnect a network adapter, or put\nthe Saves DB on the disc or SD card");
+		return;
+	}
+
+	sel = (count == 1) ? 0 : show_multi_dialog(opt, "Select Saves DB");
+	if (sel < 0)
+		return;
+
+	if (opt_path[sel])
+		snprintf(path, 128, "%s" SAVEDB_PATH, opt_path[sel]);
+	else
 		strcpy(path, apollo_config.save_db);
+
+	LOG("Saves DB: %s", path);
 }
 
 static void registerSpecialChars(void)
