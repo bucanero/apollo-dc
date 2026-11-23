@@ -172,6 +172,7 @@ static void SetMenu(int id)
 				menu_old_sel[MENU_VMU_SAVES] = 0;
 			}
 			menu_textures[icon_png_file_index].size = 0;
+			break;
 
 		case MENU_PATCHES: //Cheat Selection Menu
 			// The patch menu's own screens (code options, hex editor, details) come back
