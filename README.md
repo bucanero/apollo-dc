@@ -3,7 +3,8 @@
 [![Downloads][img_downloads]][app_downloads] [![Release][img_latest]][app_latest] [![License][img_license]][app_license]
 [![DC Build](https://github.com/bucanero/apollo-dc/actions/workflows/build.yml/badge.svg)](https://github.com/bucanero/apollo-dc/actions/workflows/build.yml)
 ![Dreamcast](https://img.shields.io/badge/-Dreamcast-F04E23?style=flat&logo=sega&logoColor=white)
-[![Twitter](https://img.shields.io/twitter/follow/dparrino?label=Follow)](https://twitter.com/dparrino)
+[![Twitter](https://img.shields.io/twitter/follow/dparrino?label=Follow)](https://x.com/dparrino)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue)](https://deepwiki.com/bucanero/apollo-dc)
 
 **Apollo Save Tool** is an application to manage save-game files on the Sega Dreamcast.
 
@@ -11,7 +12,7 @@ This homebrew app allows you to manage, back up, patch, and import save-game fil
 
 ![image](./docs/screenshot-main.png)
 
-**Comments, ideas, suggestions?** You can [contact me](https://github.com/bucanero/) on [Twitter](https://twitter.com/dparrino) and on [my website](http://www.bucanero.com.ar/).
+**Comments, ideas, suggestions?** You can [contact me](https://github.com/bucanero/) on [Twitter](https://x.com/dparrino) and on [my website](http://www.bucanero.com.ar/).
 
 # Features
 
