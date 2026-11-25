@@ -19,7 +19,7 @@ This homebrew app allows you to manage, back up, patch, and import save-game fil
 * **Easy to use:** no advanced setup needed.
 * **Standalone:** no computer required, everything happens on the Dreamcast.
 * **Self-booting disc:** the app, the save patches and the Saves DB on a single `.cdi` image.
-* **Settings on the VMU:** your settings are kept in a small `APOLLO__OPTS` file (2 blocks), found on any VMU at startup.
+* **Settings on the VMU:** your settings are kept in a small `APOLLOCONFIG` file (2 blocks), found on any VMU at startup.
 
 ## VMU Save Management
 
@@ -76,7 +76,7 @@ To import and export save files, an SD card adapter (FAT formatted) is supported
 | **VMU images** | full VMU dumps are saved to `<sd/pc>:/DC/VMU/` (`*.bin`) |
 | **Saves DB** | online, or `APOLLO/DC/` on the disc (`/cd/`), SD card (`/sd/`), or PC (`/pc/`) |
 | **App data** | save patches and the VMU file name catalog, in `/cd/APOLLO/DATA/` on the disc |
-| **Settings** | `APOLLO__OPTS` file, on the VMU it was loaded from (or the first VMU found) |
+| **Settings** | `APOLLOCONFIG` file, on the VMU it was loaded from (or the first VMU found) |
 
 # Usage
 
