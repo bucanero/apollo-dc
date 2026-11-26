@@ -29,7 +29,7 @@ First Dreamcast release of Apollo Save Tool, based on [apollo-ps2](https://githu
 * Saves DB: the [Apollo saves database](https://github.com/bucanero/apollo-saves), ready to import into a VMU
   - Online Saves DB with a Broadband Adapter (HTTPS), with the offline copy on the disc as fallback
 * Background music (S3M player)
-* Settings stored on a VMU (`APOLLO__OPTS`)
+* Settings stored on a VMU (`APOLLOCONFIG`)
 * Startup splash shown while the app loads, and pixel art on the VMU screens
 * Self-booting `.cdi` disc image with the app, the save patches, and the Saves DB
 * SD card adapter (`/sd/`) and dcload (`/pc/`) storage

@@ -3,7 +3,8 @@
 [![Downloads][img_downloads]][app_downloads] [![Release][img_latest]][app_latest] [![License][img_license]][app_license]
 [![DC Build](https://github.com/bucanero/apollo-dc/actions/workflows/build.yml/badge.svg)](https://github.com/bucanero/apollo-dc/actions/workflows/build.yml)
 ![Dreamcast](https://img.shields.io/badge/-Dreamcast-F04E23?style=flat&logo=sega&logoColor=white)
-[![Twitter](https://img.shields.io/twitter/follow/dparrino?label=Follow)](https://twitter.com/dparrino)
+[![Twitter](https://img.shields.io/twitter/follow/dparrino?label=Follow)](https://x.com/dparrino)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue)](https://deepwiki.com/bucanero/apollo-dc)
 
 **Apollo Save Tool** is an application to manage save-game files on the Sega Dreamcast.
 
@@ -11,14 +12,14 @@ This homebrew app allows you to manage, back up, patch, and import save-game fil
 
 ![image](./screenshot-main.png)
 
-**Comments, ideas, suggestions?** You can [contact me](https://github.com/bucanero/) on [Twitter](https://twitter.com/dparrino) and on [my website](http://www.bucanero.com.ar/).
+**Comments, ideas, suggestions?** You can [contact me](https://github.com/bucanero/) on [Twitter](https://x.com/dparrino) and on [my website](http://www.bucanero.com.ar/).
 
 # Features
 
 * **Easy to use:** no advanced setup needed.
 * **Standalone:** no computer required, everything happens on the Dreamcast.
 * **Self-booting disc:** the app, the save patches and the Saves DB on a single `.cdi` image.
-* **Settings on the VMU:** your settings are kept in a small `APOLLO__OPTS` file (2 blocks), found on any VMU at startup.
+* **Settings on the VMU:** your settings are kept in a small `APOLLOCONFIG` file (2 blocks), found on any VMU at startup.
 
 ## VMU Save Management
 
@@ -75,7 +76,7 @@ To import and export save files, an SD card adapter (FAT formatted) is supported
 | **VMU images** | full VMU dumps are saved to `<sd/pc>:/DC/VMU/` (`*.bin`) |
 | **Saves DB** | online, or `APOLLO/DC/` on the disc (`/cd/`), SD card (`/sd/`), or PC (`/pc/`) |
 | **App data** | save patches and the VMU file name catalog, in `/cd/APOLLO/DATA/` on the disc |
-| **Settings** | `APOLLO__OPTS` file, on the VMU it was loaded from (or the first VMU found) |
+| **Settings** | `APOLLOCONFIG` file, on the VMU it was loaded from (or the first VMU found) |
 
 # Usage
 

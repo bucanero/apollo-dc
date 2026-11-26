@@ -44,7 +44,7 @@ menu_option_t menu_options[] = {
 		.options = (char**) ext_src,
 		.type = APP_OPTION_LIST,
 		.value = &apollo_config.storage,
-		.callback = owner_callback
+		.callback = storage_callback
 	},
 	{ .name = "Check for Updates", 
 		.options = NULL, 
@@ -221,9 +221,27 @@ void update_callback(int sel)
 	check_app_version(1);
 }
 
-void owner_callback(int sel)
+void storage_callback(int sel)
 {
+	extern save_list_t usb_saves;
+	extern save_list_t user_backup;
+
 	apollo_config.storage = sel;
+
+	// External Saves and User Tools keep their lists: drop them, so the new source is read next time
+	if (usb_saves.list)
+	{
+		UnloadGameList(usb_saves.list);
+		usb_saves.list = NULL;
+		menu_old_sel[MENU_EXT_SAVES] = 0;
+	}
+
+	if (user_backup.list)
+	{
+		UnloadGameList(user_backup.list);
+		user_backup.list = NULL;
+		menu_old_sel[MENU_USER_BACKUP] = 0;
+	}
 }
 
 #define APOLLO_LOG_FILE		USB_PATH "apollo.log"
@@ -258,14 +276,14 @@ void log_callback(int sel)
 }
 
 /*
- * Settings are kept on a VMU as APOLLO__OPTS, a 2-block data file:
+ * Settings are kept on a VMU as APOLLOCONFIG, a 2-block data file:
  *   0x000  VMS header (descriptions, 1 icon, CRC, palette)
  *   0x080  32x32 icon
  *   0x280  app_config_t
  * At launch every VMU is searched; the settings are written back to the VMU they
  * came from, or to the first VMU found.
  */
-#define SETTINGS_FILE           "APOLLO__OPTS"
+#define SETTINGS_FILE           "APOLLOCONFIG"
 #define SETTINGS_BLOCKS         2
 #define SETTINGS_DATA_OFF       (VMS_HEADER_SIZE + VMS_ICON_SIZE)
 

@@ -818,7 +818,7 @@ list_t * ReadBackupList(const char* userPath)
 	save_entry_t * item;
 	list_t *list = list_alloc();
 
-	item = _createSaveEntry(SAVE_FLAG_ZIP, CHAR_ICON_ZIP " Extract Archives (Zip, 7z)");
+	item = _createSaveEntry(SAVE_FLAG_ZIP, CHAR_ICON_ZIP " Extract Archives (Zip)");
 	item->path = strdup(menu_options[3].options[apollo_config.storage]);
 	item->type = FILE_TYPE_ZIP;
 	list_append(list, item);
